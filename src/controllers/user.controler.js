@@ -11,16 +11,14 @@ const registerUser = asyncHandler(async(req,res)=>{
     }
     const existedUser = await User.findOne({mobileNumber});
     if(existedUser){
-        const address = await Address.find({userId:existedUser._id}).select("-userId -__v")
-        res.status(201).json(new ApiResponse(200,{user:existedUser,addresses:address},"User Login successfully"))
+        res.status(200).json(new ApiResponse(200,{user:existedUser},"User Login successfully"))
         return 
     }
-
     const user = await User.create({
         mobileNumber:mobileNumber,
         email
     })
-   return res.status(201).json(new ApiResponse(200,user,"User Registered successfully"))
+   return res.status(201).json(new ApiResponse(201,user,"User Registered successfully"))
 
 })
 
