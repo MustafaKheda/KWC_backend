@@ -61,11 +61,13 @@ const productSchema = new Schema({
     },
     category_id: {
         type: Schema.Types.ObjectId,
-        ref: "Category"
+        ref: "Category",
+        index:true
     },
     subcategory_id: {
         type: Schema.Types.ObjectId,
-        ref: "Subcategory"
+        ref: "Subcategory",
+        index:true
     },
     pricing: [pricingSchema], // Embed the pricing schema
     inventory: inventorySchema, // Embed the inventory schema

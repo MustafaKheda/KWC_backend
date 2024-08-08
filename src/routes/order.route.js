@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { registerAddress,getAllAddress } from "../controllers/order.controler.js";
+import { createOrder, getAllOrder } from "../controllers/order.controler.js";
 
 const router = Router();
 
-router.route("/create").post(registerAddress);
-router.route("/").get(getAllAddress)
+router.route("/create").post(createOrder);
+router.route("/").get(getAllOrder)
+
 
 export default router

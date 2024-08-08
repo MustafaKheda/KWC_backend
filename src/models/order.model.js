@@ -26,6 +26,10 @@ const orderSchema = new Schema({
         price:{
             type:Number,
             required: [true, 'Price is required']
+        },
+        size:{
+            type:Number,
+            required: [true, 'Product Size is required']
         }
     }],
     subtotal:{
