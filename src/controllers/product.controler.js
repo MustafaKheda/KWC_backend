@@ -207,6 +207,25 @@ export const productBySubCategory = asyncHandler(async (req, res) => {
     res.status(200).json(new ApiResponse(200, products, 'Fetched Product by SubCategory'));
 });
 
+export const productByID = asyncHandler(async (req, res) => {
+    const product_id = req.params.id; // Access route parameter 'id'
+
+    if (!product_id) {
+        throw new ApiError(400, 'SubCategory ID is required');
+    }
+    if (!mongoose.Types.ObjectId.isValid(product_id)) {
+        throw new ApiError(400, "Invalid Subcategory ID format");
+    }
+    const products = await Product.findById({_id:product_id,isActive:true})
+        .select('-pricing.cost -promotions.sale_end_date');
+
+    if (!products || products.length < 1) {
+        return res.status(404).json(new ApiResponse(404, [], 'Product not found'));
+    }
+
+    res.status(200).json(new ApiResponse(200, products, 'Fetched Product by ID'));
+});
+
 export const searchProducts = asyncHandler(async (req, res) => {
     const { query } = req.query;
     if (!query) {

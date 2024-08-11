@@ -80,7 +80,7 @@ const createOrder = asyncHandler(async (req, res) => {
 
     // Save the order to the database
     const savedOrder = await newOrder.save();
-    // sendEmailToVendor(savedOrder, products)
+    sendEmailToVendor(savedOrder, products)
 
     return res.status(201).json(new ApiResponse(201, savedOrder, "Order placed successfully. Thank you for your purchase!"));
 
