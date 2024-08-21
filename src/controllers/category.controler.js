@@ -35,12 +35,10 @@ const createCategory = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, { category: createdCategory }, "Category Created Successfully"))
 })
 const allCategory = asyncHandler(async (req, res) => {
-   
     const allCategory = await Category.find().populate('subcategories');
     if(allCategory.length <= 0 ){
        return res.status(200).json(new ApiResponse(200, "", "No data found"))
     }
-    Response(res,200,"sdfsdf",{fsdffsdf})
     return res.status(200).json(new ApiResponse(200, { categories: allCategory }, "All Categorys fetched successfully"))
 })
 

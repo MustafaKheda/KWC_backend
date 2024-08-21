@@ -6,7 +6,7 @@ import { User } from "../models/user.model.js";
 import mongoose from "mongoose";
 import Product from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
-import { sendEmailToVendor } from "../utils/Email.js";
+import { sendEmailToCustomer, sendEmailToVendor } from "../utils/Email.js";
 
 
 
@@ -20,10 +20,11 @@ const createOrder = asyncHandler(async (req, res) => {
     }
 
     // Validate address ID
-    // const address = await Address.findById(address_id);
-    // if (!address) {
-    //     throw new ApiError(400, 'Invalid address ID')
-    // }
+    const address = await Address.findById(address_id);
+
+    if (!address) {
+        throw new ApiError(400, 'Invalid address ID')
+    }
     const productIds = await order_items.map(item => new mongoose.Types.ObjectId(item.product_id));
 
     const products = await Product.aggregate([
@@ -34,7 +35,8 @@ const createOrder = asyncHandler(async (req, res) => {
                 _id: "$_id",
                 prices: { $push: "$pricing" },
                 name: { $first: "$name" },
-                currency: { $first: "$attributes.currency" }
+                currency: { $first: "$attributes.currency" },
+                unit: { $first: "$attributes.size_unit" }
             }
         }
     ]);
@@ -76,14 +78,52 @@ const createOrder = asyncHandler(async (req, res) => {
         total,
         status: "Pending" // default status
     });
-
-
     // Save the order to the database
     const savedOrder = await newOrder.save();
-    // sendEmailToVendor(savedOrder, products)
+
+    sendEmailToVendor(savedOrder, products,req)
 
     return res.status(201).json(new ApiResponse(201, savedOrder, "Order placed successfully. Thank you for your purchase!"));
 
+})
+
+const confirmOrder = asyncHandler(async (req, res) => {
+    const { id,status } = req.query;
+    console.log(id)
+
+    const order = await Order.findByIdAndUpdate({ _id: id }, { status: status }, { new: true })
+    const productIds = order.order_items.map(item => item.product_id);
+
+    // Fetch product details using aggregation
+    const products = await Product.aggregate([
+        { $match: { _id: { $in: productIds } } },
+        {
+            $project: {
+                _id: 1,
+                name: 1,
+                unit: "$attributes.size_unit"
+            }
+        }
+    ]);
+
+    // Create a map of product IDs to names and units for quick lookup
+    const productMap = products.reduce((map, product) => {
+        map[product._id] = { name: product.name, unit: product.unit };
+        return map;
+    }, {});
+
+    // Map order items to include product details
+    const productDetails = order.order_items.map(item => ({
+        product_id: item.product_id,
+        name: productMap[item.product_id]?.name || 'Unknown Product',
+        unit: productMap[item.product_id]?.unit || 'Unknown Unit',
+        price: item.price,
+        size: item.size,
+        quantity: item.quantity
+    }));
+    sendEmailToCustomer(order, productDetails)
+
+    return res.status(201).json(new ApiResponse(201, order, "Order Confirmed"));
 })
 
 const getAllOrder = asyncHandler(async (req, res) => {
@@ -91,4 +131,4 @@ const getAllOrder = asyncHandler(async (req, res) => {
 });
 
 
-export { createOrder, getAllOrder }
+export { createOrder, getAllOrder, confirmOrder }

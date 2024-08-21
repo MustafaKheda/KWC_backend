@@ -1,32 +1,205 @@
+import mongoose from "mongoose";
 import nodemailer from "nodemailer"
-export const sendEmailToVendor = async (order, products) => {
-    const transporter = nodemailer.createTransport({
+import { User } from "../models/user.model.js";
+import { Address } from "../models/address.model.js";
+import { asyncHandler } from "./asyncHandler.js";
+export const sendEmailToVendor = async (order, products,req) => {
+    const customer = await User.findById(order.user_id).select('email mobileNumber')
+    const address = await Address.findById(order.address_id).select("-createAt -updateAt")
+    var smtpConfig = {
         host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
+        port: 465,
         auth: {
-            type: 'OAuth2',
-            user: process.env.EMAIL, // your email address
-            pass: process.env.EMAIL_PASS,  // your email password,
-            clientId: process.env.OAUTH_CLIENT_ID,
-            clientSecret: process.env.OAUTH_CLIENT_SECRET,
-            refreshToken: process.env.OAUTH_REFRESH_TOKEN
-        },
+            user: process.env.EMAIL,
+            pass: process.env.EMAIL_PASS
 
-    });
-    console.log(transporter)
-    const mailOptions = {
-        from: 'mustafakheda07@gmail.com', // sender address
-        to: 'mustafakheda07@gmail.com', // list of receivers
-        subject: 'Welcome to Our Service', // Subject line
-        text: 'Dear UserThank you for signing up for our service.Best Regards', // plain text body
-        html: `<p>Dear User,</p><p>Thank you for signing up for our service.</p><p>Best Regards,<br>Your Company</p>` // html body
+        }
+    };
+    var transporter = nodemailer.createTransport(smtpConfig);
+
+    var mailOptions = {
+        from: `Beautify <${process.env.EMAIL}>`, // sender address
+        to: 'mustafa.kheda@kadellabs.com', // list of receivers
+        subject: 'Order Confirmation', // Subject line
+        html: createOrderEmailTemplate(order, products, customer, address,req) // html body
     };
 
-    try {
-        let info = await transporter.sendMail(mailOptions);
-        console.log('Message sent: %s', info.messageId);
-    } catch (error) {
-        console.error('Error sending email: %s', error);
-    }
+    transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+            console.log(error);
+        } else {
+            console.log('Email sent: ' + info.response);
+        }
+    });
+}
+
+export const sendEmailToCustomer = async (order, products) => {
+    const customer = await User.findById(order.user_id).select('email mobileNumber')
+    var smtpConfig = {
+        host: 'smtp.gmail.com',
+        port: 465,
+        auth: {
+            user: process.env.EMAIL,
+            pass: process.env.EMAIL_PASS
+
+        }
+    };
+    var transporter = nodemailer.createTransport(smtpConfig);
+    var mailOptions = {
+        from: `Beautify <${process.env.EMAIL}>`, // sender address
+        to: customer.email, // list of receivers
+        subject: 'Order Confirmation', // Subject line
+        html: createOrderConfirmEmailTemplate(order, products) // html body
+    };
+
+    transporter.sendMail(mailOptions, function (error, info) {
+        if (error) {
+            console.log(error);
+        } else {
+            console.log('Email sent: ' + info.response);
+        }
+    });
+}
+
+
+
+//Templates
+function createOrderEmailTemplate(order, products, customer, address,req) {
+    const { order_items, subtotal, delivery_charge, total, status, _id } = order;
+    // Create a mapping from product_id to product name
+    const productMap = new Map(products.map(product => [product._id.toString(), product.name]));
+    const productUnitMap = new Map(products.map(product => [product._id.toString(), product.unit]));
+    console.log(productUnitMap)
+    let orderItemsHTML = order_items.map(item => `
+        <tr>
+            <td>${productMap.get(item.product_id.toString())}</td>
+            <td>${item.quantity}</td>
+            <td>${item.size} ${productUnitMap.get(item.product_id.toString())}</td>
+            <td>KD ${item.price.toFixed(2)}</td>
+        </tr>
+    `).join('');
+    const acceptUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Inprogress`; // Replace with your actual accept URL
+    const rejectUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Failed`; // Replace with your actual reject URL
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Order Confirmation</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 5px; }
+            h1 { color: #333; }
+            p { font-size: 16px; color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+            th { background-color: #f4f4f4; }
+            .button-container { margin-top: 20px; text-align: center; }
+            .btn { background-color: #4CAF50; color: white!important; padding: 10px 20px; text-align: center; text-decoration: none; font-size: 16px; border-radius: 5px; margin: 5px; }
+            .btn-reject { background-color: #f44336; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>New Order Received</h1>
+            <p><strong>Order ID:</strong> ${_id}</p>
+            <p><strong>Status:</strong> ${status}</p>
+            <h2>Customer Information</h2>
+            <p><strong>Name:</strong> ${address.firstName} ${address.lastName || ''}</p>
+            <p><strong>Email:</strong> ${customer.email}</p>
+            <h2>Shipping Address</h2>
+            <p><strong>Area:</strong> ${address.area}</p>
+            <p><strong>Block:</strong> ${address.block}</p>
+            <p><strong>Street:</strong> ${address.street}</p>
+            ${address.avenue ? `<p><strong>Avenue:</strong> ${address.avenue}</p>` : ''}
+            <p><strong>House Number:</strong> ${address.houseNumber}</p>
+            <h2>Order Details</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Quantity</th>
+                        <th>Size</th>
+                        <th>Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orderItemsHTML}
+                </tbody>
+            </table>
+            <p><strong>Subtotal:</strong> KD ${subtotal.toFixed(2)}</p>
+            <p><strong>Delivery Charge:</strong> KD ${delivery_charge.toFixed(2)}</p>
+            <p><strong>Total:</strong> KD ${total.toFixed(2)}</p>
+
+             <div class="button-container">
+                <a href="${acceptUrl}" class="btn">Accept Order</a>
+                <a href="${rejectUrl}" class="btn btn-reject">Reject Order</a>
+            </div>
+            <p>Please process this order as soon as possible. Thank you!</p>
+        </div>
+    </body>
+    </html>
+    `;
+}
+
+function createOrderConfirmEmailTemplate(order, products) {
+    const { subtotal, delivery_charge, total, status, _id } = order;
+
+    let orderItemsHTML = products.map(item => `
+        <tr>
+            <td>${item.name}</td>
+            <td>${item.quantity}</td>
+            <td>${item.size} ${item.unit}</td>
+            <td>KD ${item.price.toFixed(2)}</td>
+        </tr>
+    `).join('');
+
+    return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Order Confirmation</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px; border-radius: 5px; }
+            h1 { color: #333; }
+            p { font-size: 16px; color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+            th { background-color: #f4f4f4; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Order Confirmation</h1>
+            <p>Thank you for your purchase! Here are the details of your order:</p>
+            <p><strong>Order ID:</strong> ${_id}</p>
+            <p><strong>Status:</strong> ${status}</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Quantity</th>
+                        <th>Size</th>
+                        <th>Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orderItemsHTML}
+                </tbody>
+            </table>
+            <p><strong>Subtotal:</strong> KD ${subtotal.toFixed(2)}</p>
+            <p><strong>Delivery Charge:</strong> KD ${delivery_charge.toFixed(2)}</p>
+            <p><strong>Total:</strong> KD ${total.toFixed(2)}</p>
+
+            
+
+            <p>We appreciate your business and hope you enjoy your purchase!</p>
+        </div>
+    </body>
+    </html>
+    `;
 }

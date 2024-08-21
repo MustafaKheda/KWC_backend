@@ -76,6 +76,7 @@ const getAllAddress = asyncHandler(async (req, res) => {
      throw new ApiError(404, "Wrong User ID");
    } 
    const addresses = await Address.find({ userId }).select("-userId -__v").exec();
+   
    if (!addresses.length) {
      return res.status(200).json(new ApiResponse(200, [], "No records found"));
    }
