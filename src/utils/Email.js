@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import nodemailer from "nodemailer"
 import { User } from "../models/user.model.js";
 import { Address } from "../models/address.model.js";
-import { asyncHandler } from "./asyncHandler.js";
 export const sendEmailToVendor = async (order, products,req) => {
     const customer = await User.findById(order.user_id).select('email mobileNumber')
     const address = await Address.findById(order.address_id).select("-createAt -updateAt")
@@ -69,17 +68,16 @@ function createOrderEmailTemplate(order, products, customer, address,req) {
     // Create a mapping from product_id to product name
     const productMap = new Map(products.map(product => [product._id.toString(), product.name]));
     const productUnitMap = new Map(products.map(product => [product._id.toString(), product.unit]));
-    console.log(productUnitMap)
     let orderItemsHTML = order_items.map(item => `
         <tr>
             <td>${productMap.get(item.product_id.toString())}</td>
             <td>${item.quantity}</td>
-            <td>${item.size} ${productUnitMap.get(item.product_id.toString())}</td>
-            <td>KD ${item.price.toFixed(2)}</td>
+            <td>${item.size}${productUnitMap.get(item.product_id.toString())}</td>
+            <td>KWD ${item.price.toFixed(2)}</td>
         </tr>
     `).join('');
     const acceptUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Inprogress`; // Replace with your actual accept URL
-    const rejectUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Failed`; // Replace with your actual reject URL
+    const rejectUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Canceled`; // Replace with your actual reject URL
     return `
     <!DOCTYPE html>
     <html lang="en">
@@ -128,9 +126,9 @@ function createOrderEmailTemplate(order, products, customer, address,req) {
                     ${orderItemsHTML}
                 </tbody>
             </table>
-            <p><strong>Subtotal:</strong> KD ${subtotal.toFixed(2)}</p>
-            <p><strong>Delivery Charge:</strong> KD ${delivery_charge.toFixed(2)}</p>
-            <p><strong>Total:</strong> KD ${total.toFixed(2)}</p>
+            <p><strong>Subtotal:</strong> KWD ${subtotal.toFixed(2)}</p>
+            <p><strong>Delivery Charge:</strong> KWD ${delivery_charge.toFixed(2)}</p>
+            <p><strong>Total:</strong> KWD ${total.toFixed(2)}</p>
 
              <div class="button-container">
                 <a href="${acceptUrl}" class="btn">Accept Order</a>
@@ -150,8 +148,8 @@ function createOrderConfirmEmailTemplate(order, products) {
         <tr>
             <td>${item.name}</td>
             <td>${item.quantity}</td>
-            <td>${item.size} ${item.unit}</td>
-            <td>KD ${item.price.toFixed(2)}</td>
+            <td>${item.size}${item.unit}</td>
+            <td>KWD ${item.price.toFixed(2)}</td>
         </tr>
     `).join('');
 
@@ -191,9 +189,9 @@ function createOrderConfirmEmailTemplate(order, products) {
                     ${orderItemsHTML}
                 </tbody>
             </table>
-            <p><strong>Subtotal:</strong> KD ${subtotal.toFixed(2)}</p>
-            <p><strong>Delivery Charge:</strong> KD ${delivery_charge.toFixed(2)}</p>
-            <p><strong>Total:</strong> KD ${total.toFixed(2)}</p>
+            <p><strong>Subtotal:</strong> KWD ${subtotal.toFixed(2)}</p>
+            <p><strong>Delivery Charge:</strong> KWD ${delivery_charge.toFixed(2)}</p>
+            <p><strong>Total:</strong> KWD ${total.toFixed(2)}</p>
 
             
 

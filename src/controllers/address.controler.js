@@ -2,7 +2,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Address } from "../models/address.model.js";
-import { User } from "../models/user.model.js";
+import { User } from "../models/user.model.js";  
 import mongoose from "mongoose";
 
 const registerAddress = asyncHandler(async (req, res) => {
@@ -22,7 +22,7 @@ const registerAddress = asyncHandler(async (req, res) => {
       block,
       street,
       houseNumber,
-      userId
+      userId,
    });
 
    if (existedAddress) {
@@ -33,7 +33,6 @@ const registerAddress = asyncHandler(async (req, res) => {
       { email: newEmail },
       { new: true, runValidators: true } // Options to return the updated document and run validators
    );
-   console.log(updatedUser)
 
    const newAddress = await Address.create({
       firstName, lastName, area, block, street, avenue, houseNumber, userId, addressType
