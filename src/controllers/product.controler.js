@@ -239,7 +239,7 @@ export const allProduct = asyncHandler(async (req, res) => {
           base_price: 1,
           discounted_price: 1,
         },
-        categorysname: {
+        categories: {
           $concatArrays: ["$category.name", "$subcategory.name"],
         },
         inventory: 1,
@@ -254,34 +254,112 @@ export const allProduct = asyncHandler(async (req, res) => {
       },
     },
   ]);
-//   const products = await Product.find({ isActive: true }).select(
-//     "-pricing.cost -attributes.weight -promotions.sale_end_date"
-//   );
+  //   const products = await Product.find({ isActive: true }).select(
+  //     "-pricing.cost -attributes.weight -promotions.sale_end_date"
+  //   );
   if (!products || products.length < 1) {
-    return res.status(404).json(new ApiResponse(404, [], "Product not found"));
+    throw new ApiError(404, "Product not found");
+
+    // return res.status(404).json(new ApiResponse(404, [], "Product not found"));
   }
   res.status(200).json(new ApiResponse(200, products, "Fetched All Product"));
 });
 
 export const productByCategory = asyncHandler(async (req, res) => {
-  const category_id = req.params.id;
-
-  if (!category_id) {
+  const id = req.params.id;
+  console.log(id);
+  if (!id) {
     throw new ApiError(400, "Category ID is required");
   }
 
-  if (!mongoose.Types.ObjectId.isValid(category_id)) {
+  if (!mongoose.Types.ObjectId.isValid(id)) {
     throw new ApiError(400, "Invalid Category ID format");
   }
-  const products = await Product.find({
-    isActive: true,
-    $or: [{ category_id }, { subcategory_id: category_id }],
-  }).select(
-    "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
-  );
 
+  //
+  const products = await Product.aggregate([
+    {
+      $match: {
+        isActive: true,
+        $or: [
+          { category_id: new mongoose.Types.ObjectId(id) },
+          { subcategory_id: new mongoose.Types.ObjectId(id) },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "categories", // Replace with the actual name of the category collection
+        localField: "category_id",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    {
+      $lookup: {
+        from: "subcategories", // Replace with the actual name of the subcategory collection
+        localField: "subcategory_id",
+        foreignField: "_id",
+        as: "subcategory",
+      },
+    },
+    {
+      $addFields: {
+        category_name: { $arrayElemAt: ["$category.name", 0] }, // Extract category name
+        subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] }, // Extract subcategory name
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        pricing: {
+          size: 1,
+          base_price: 1,
+          discounted_price: 1,
+        },
+        categories: {
+          $filter: {
+            input: [
+              { $ifNull: ["$category_name", null] },
+              { $ifNull: ["$subcategory_name", null] },
+            ],
+            as: "name",
+            cond: { $ne: ["$$name", null] },
+          },
+        },
+        inventory: 1,
+        category_id: 1,
+        subcategory_id: 1,
+        images: 1,
+        attributes: 1,
+        customer_reviews: 1,
+        promotions: {
+          discount_percentage: 1,
+        },
+      },
+    },
+  ]);
+
+  // const products = await Product.find({
+  //   isActive: true,
+  //   $or: [{ category_id: id }, { subcategory_id: id }],
+  // }).select(
+  //   "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
+  // );
+  // const product = await Product.aggregate([
+  //   {
+  //     $match: {
+  //       isActive: true,
+
+  //     },
+  //   },
+  // ]);
+  console.log(products);
+  // console.log(product);
   if (!products || products.length < 1) {
-    return res.status(404).json(new ApiResponse(404, [], "Product not found"));
+    throw new ApiError(404, "Product not found");
+    // return res.status(404).json(new ApiResponse(404, [], "Product not found"));
   }
   res
     .status(201)
@@ -297,13 +375,15 @@ export const productBySubCategory = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(subcategory_id)) {
     throw new ApiError(400, "Invalid Subcategory ID format");
   }
+
   const products = await Product.find({
     subcategory_id,
     isActive: true,
   }).select("-pricing.cost -promotions.sale_end_date");
 
   if (!products || products.length < 1) {
-    return res.status(404).json(new ApiResponse(404, [], "Product not found"));
+    throw new ApiError(404, "Product not found");
+    //return res.status(404).json(new ApiResponse(404, [], "Product not found"));
   }
 
   res
@@ -320,13 +400,55 @@ export const productByID = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(product_id)) {
     throw new ApiError(400, "Invalid Subcategory ID format");
   }
-  const products = await Product.findById({
-    _id: product_id,
-    isActive: true,
-  }).select("-pricing.cost -promotions.sale_end_date");
-
+  const products = await Product.aggregate([
+    {
+      $match: {
+        isActive: true,
+        _id: new mongoose.Types.ObjectId(product_id),
+      },
+    },
+    {
+      $lookup: {
+        from: "categories", // Replace with the actual name of the category collection
+        localField: "category_id",
+        foreignField: "_id",
+        as: "category",
+      },
+    },
+    {
+      $lookup: {
+        from: "subcategories", // Replace with the actual name of the subcategory collection
+        localField: "subcategory_id",
+        foreignField: "_id",
+        as: "subcategory",
+      },
+    },
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        pricing: {
+          size: 1,
+          base_price: 1,
+          discounted_price: 1,
+        },
+        categories: {
+          $concatArrays: ["$category.name", "$subcategory.name"],
+        },
+        inventory: 1,
+        category_id: 1,
+        subcategory_id: 1,
+        images: 1,
+        attributes: 1,
+        customer_reviews: 1,
+        promotions: {
+          discount_percentage: 1,
+        },
+      },
+    },
+  ]);
   if (!products || products.length < 1) {
-    return res.status(404).json(new ApiResponse(404, [], "Product not found"));
+    throw new ApiError(404, "Product not found");
   }
 
   res.status(200).json(new ApiResponse(200, products, "Fetched Product by ID"));
@@ -373,6 +495,9 @@ export const searchProducts = asyncHandler(async (req, res) => {
           size: 1,
           base_price: 1,
           discounted_price: 1,
+        },
+        categories: {
+          $concatArrays: ["$category.name", "$subcategory.name"],
         },
         inventory: 1,
         category_id: 1,
