@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-  allProduct,
   createProduct,
   productByCategory,
   productBySubCategory,
@@ -12,8 +11,8 @@ import {
 const router = Router();
 
 router.route("/create").post(createProduct);
-router.route("/").get(allProduct);
-router.route("/by-category").get(allProduct);
+// router.route("/").get(allProduct);
+// router.route("/by-category").get(allProduct);
 router.route("/by-category/:id").get(productByCategory);
 router.route("/by-subcategory/:id").get(productBySubCategory);
 router.route("/search").get(searchProducts);
