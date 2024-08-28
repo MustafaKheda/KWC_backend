@@ -211,7 +211,7 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
     .json(new ApiResponse(201, newProducts, "Products created successfully"));
 });
 
- const allProduct =async() => {
+const allProduct =async() => {
   const products = await Product.aggregate([
     { $match: { isActive: true } },
     {
@@ -264,9 +264,6 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
 
 export const productByCategory = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  console.log(id);
-
-
   if( id==='all'){
     const products=await allProduct()
  return res.status(200).json(new ApiResponse(200,products, "Fetched All Product"));
@@ -451,7 +448,8 @@ export const productByID = asyncHandler(async (req, res) => {
     },
   ]);
   if (!products || products.length < 1) {
-    throw new ApiError(404, "Product not found");
+    // throw new ApiError(404, "Product not found");
+    return res.status(404).json(new ApiResponse(404, [], "Product not found"));
   }
 
   res.status(200).json(new ApiResponse(200, products, "Fetched Product by ID"));

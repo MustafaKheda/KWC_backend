@@ -9,32 +9,27 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!mobileNumber) {
     throw new ApiError(400, "Mobile Number is required");
   }
+  let latestAddress = {
+    firstName: "",
+    lastName: "",
+    area: "",
+    block: "",
+    street: "",
+    avenue: "",
+    houseNumber: "",
+    email: "",
+    addressType: "Home",
+  };
   const existedUser = await User.findOne({ mobileNumber });
+
   if (existedUser) {
     const addresses = await Address.find({ userId: existedUser._id })
       .select("-userId -__v")
       .exec();
 
-    let latestAddress;
-
     if (addresses.length > 0) {
       latestAddress = addresses[addresses.length - 1];
-    } else {
-      // Create an empty address object with all properties
-      latestAddress = {
-        firstName: "",
-        lastName: "",
-        area: "",
-        block: "",
-        street: "",
-        avenue: "",
-        houseNumber: "",
-        email: "",
-        addressType: "Home",
-      }; // Optionally remove _id if you don't want it in the response
     }
-
-    console.log(latestAddress);
     return res
       .status(200)
       .json(
@@ -49,9 +44,10 @@ const registerUser = asyncHandler(async (req, res) => {
     mobileNumber: mobileNumber,
     email,
   });
+
   return res
     .status(201)
-    .json(new ApiResponse(201, user, "User Registered successfully"));
+    .json(new ApiResponse(201, {user,address:latestAddress}, "User Registered successfully"));
 });
 
 export { registerUser };
