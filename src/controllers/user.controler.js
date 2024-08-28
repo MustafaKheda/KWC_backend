@@ -14,12 +14,33 @@ const registerUser = asyncHandler(async (req, res) => {
     const addresses = await Address.find({ userId: existedUser._id })
       .select("-userId -__v")
       .exec();
+
+    let latestAddress;
+
+    if (addresses.length > 0) {
+      latestAddress = addresses[addresses.length - 1];
+    } else {
+      // Create an empty address object with all properties
+      latestAddress = {
+        firstName: "",
+        lastName: "",
+        area: "",
+        block: "",
+        street: "",
+        avenue: "",
+        houseNumber: "",
+        email: "",
+        addressType: "Home",
+      }; // Optionally remove _id if you don't want it in the response
+    }
+
+    console.log(latestAddress);
     return res
       .status(200)
       .json(
         new ApiResponse(
           200,
-          { user: existedUser, addresses: addresses[addresses.length - 1] },
+          { user: existedUser, address: latestAddress },
           "User Login successfully"
         )
       );
