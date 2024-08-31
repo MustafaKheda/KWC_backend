@@ -1,84 +1,96 @@
 import mongoose from "mongoose";
-import nodemailer from "nodemailer"
+import nodemailer from "nodemailer";
 import { User } from "../models/user.model.js";
 import { Address } from "../models/address.model.js";
-export const sendEmailToVendor = async (order, products,req) => {
-    const customer = await User.findById(order.user_id).select('email mobileNumber')
-    const address = await Address.findById(order.address_id).select("-createAt -updateAt")
-    var smtpConfig = {
-        host: 'smtp.gmail.com',
-        port: 465,
-        auth: {
-            user: process.env.EMAIL,
-            pass: process.env.EMAIL_PASS
+export const sendEmailToVendor = async (order, products, baseUrl) => {
+  const customer = await User.findById(order.user_id).select(
+    "email mobileNumber"
+  );
+  const address = await Address.findById(order.address_id).select(
+    "-createAt -updateAt"
+  );
+  var smtpConfig = {
+    host: "smtp.gmail.com",
+    port: 465,
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.EMAIL_PASS,
+    },
+  };
+  var transporter = nodemailer.createTransport(smtpConfig);
 
-        }
-    };
-    var transporter = nodemailer.createTransport(smtpConfig);
+  var mailOptions = {
+    from: `Beautify <${process.env.EMAIL}>`, // sender address
+    to: "mustafa.kheda@kadellabs.com", // list of receivers
+    subject: "Order Confirmation", // Subject line
+    html: createOrderEmailTemplate(order, products, customer, address, baseUrl), // html body
+  };
 
-    var mailOptions = {
-        from: `Beautify <${process.env.EMAIL}>`, // sender address
-        to: 'mustafa.kheda@kadellabs.com', // list of receivers
-        subject: 'Order Confirmation', // Subject line
-        html: createOrderEmailTemplate(order, products, customer, address,req) // html body
-    };
-
-    transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-            console.log(error);
-        } else {
-            console.log('Email sent: ' + info.response);
-        }
-    });
-}
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent: " + info.response);
+    }
+  });
+};
 
 export const sendEmailToCustomer = async (order, products) => {
-    const customer = await User.findById(order.user_id).select('email mobileNumber')
-    var smtpConfig = {
-        host: 'smtp.gmail.com',
-        port: 465,
-        auth: {
-            user: process.env.EMAIL,
-            pass: process.env.EMAIL_PASS
+  const customer = await User.findById(order.user_id).select(
+    "email mobileNumber"
+  );
+  var smtpConfig = {
+    host: "smtp.gmail.com",
+    port: 465,
+    auth: {
+      user: process.env.EMAIL,
+      pass: process.env.EMAIL_PASS,
+    },
+  };
+  var transporter = nodemailer.createTransport(smtpConfig);
+  var mailOptions = {
+    from: `Beautify <${process.env.EMAIL}>`, // sender address
+    to: customer.email, // list of receivers
+    subject: "Order Confirmation", // Subject line
+    html: createOrderConfirmEmailTemplate(order, products), // html body
+  };
 
-        }
-    };
-    var transporter = nodemailer.createTransport(smtpConfig);
-    var mailOptions = {
-        from: `Beautify <${process.env.EMAIL}>`, // sender address
-        to: customer.email, // list of receivers
-        subject: 'Order Confirmation', // Subject line
-        html: createOrderConfirmEmailTemplate(order, products) // html body
-    };
-
-    transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-            console.log(error);
-        } else {
-            console.log('Email sent: ' + info.response);
-        }
-    });
-}
-
-
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent: " + info.response);
+    }
+  });
+};
 
 //Templates
-function createOrderEmailTemplate(order, products, customer, address,req) {
-    const { order_items, subtotal, delivery_charge, total, status, _id } = order;
-    // Create a mapping from product_id to product name
-    const productMap = new Map(products.map(product => [product._id.toString(), product.name]));
-    const productUnitMap = new Map(products.map(product => [product._id.toString(), product.unit]));
-    let orderItemsHTML = order_items.map(item => `
+function createOrderEmailTemplate(order, products, customer, address, baseUrl) {
+  const { order_items, subtotal, delivery_charge, total, status, _id } = order;
+  // Create a mapping from product_id to product name
+  const productMap = new Map(
+    products.map((product) => [product._id.toString(), product.name])
+  );
+  const productUnitMap = new Map(
+    products.map((product) => [product._id.toString(), product.unit])
+  );
+  let orderItemsHTML = order_items
+    .map(
+      (item) => `
         <tr>
             <td>${productMap.get(item.product_id.toString())}</td>
             <td>${item.quantity}</td>
-            <td>${item.size}${productUnitMap.get(item.product_id.toString())}</td>
+            <td>${item.size}${productUnitMap.get(
+        item.product_id.toString()
+      )}</td>
             <td>KWD ${item.price.toFixed(2)}</td>
         </tr>
-    `).join('');
-    const acceptUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Inprogress`; // Replace with your actual accept URL
-    const rejectUrl = `${req.protocol}://${req.get('host')}/api/v1/order/confirm?id=${_id}&status=Canceled`; // Replace with your actual reject URL
-    return `
+    `
+    )
+    .join("");
+  const acceptUrl = `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Inprogress`; // Replace with your actual accept URL
+  const rejectUrl = `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Canceled`; // Replace with your actual reject URL
+  return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -104,13 +116,19 @@ function createOrderEmailTemplate(order, products, customer, address,req) {
             <p><strong>Order ID:</strong> ${_id}</p>
             <p><strong>Status:</strong> ${status}</p>
             <h2>Customer Information</h2>
-            <p><strong>Name:</strong> ${address.firstName} ${address.lastName || ''}</p>
+            <p><strong>Name:</strong> ${address.firstName} ${
+    address.lastName || ""
+  }</p>
             <p><strong>Email:</strong> ${customer.email}</p>
             <h2>Shipping Address</h2>
             <p><strong>Area:</strong> ${address.area}</p>
             <p><strong>Block:</strong> ${address.block}</p>
             <p><strong>Street:</strong> ${address.street}</p>
-            ${address.avenue ? `<p><strong>Avenue:</strong> ${address.avenue}</p>` : ''}
+            ${
+              address.avenue
+                ? `<p><strong>Avenue:</strong> ${address.avenue}</p>`
+                : ""
+            }
             <p><strong>House Number:</strong> ${address.houseNumber}</p>
             <h2>Order Details</h2>
             <table>
@@ -127,7 +145,9 @@ function createOrderEmailTemplate(order, products, customer, address,req) {
                 </tbody>
             </table>
             <p><strong>Subtotal:</strong> KWD ${subtotal.toFixed(2)}</p>
-            <p><strong>Delivery Charge:</strong> KWD ${delivery_charge.toFixed(2)}</p>
+            <p><strong>Delivery Charge:</strong> KWD ${delivery_charge.toFixed(
+              2
+            )}</p>
             <p><strong>Total:</strong> KWD ${total.toFixed(2)}</p>
 
              <div class="button-container">
@@ -142,18 +162,22 @@ function createOrderEmailTemplate(order, products, customer, address,req) {
 }
 
 function createOrderConfirmEmailTemplate(order, products) {
-    const { subtotal, delivery_charge, total, status, _id } = order;
+  const { subtotal, delivery_charge, total, status, _id } = order;
 
-    let orderItemsHTML = products.map(item => `
+  let orderItemsHTML = products
+    .map(
+      (item) => `
         <tr>
             <td>${item.name}</td>
             <td>${item.quantity}</td>
             <td>${item.size}${item.unit}</td>
             <td>KWD ${item.price.toFixed(2)}</td>
         </tr>
-    `).join('');
+    `
+    )
+    .join("");
 
-    return `
+  return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -190,7 +214,9 @@ function createOrderConfirmEmailTemplate(order, products) {
                 </tbody>
             </table>
             <p><strong>Subtotal:</strong> KWD ${subtotal.toFixed(2)}</p>
-            <p><strong>Delivery Charge:</strong> KWD ${delivery_charge.toFixed(2)}</p>
+            <p><strong>Delivery Charge:</strong> KWD ${delivery_charge.toFixed(
+              2
+            )}</p>
             <p><strong>Total:</strong> KWD ${total.toFixed(2)}</p>
 
             
