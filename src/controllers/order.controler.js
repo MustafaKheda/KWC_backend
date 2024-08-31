@@ -183,7 +183,7 @@ const confirmOrder = asyncHandler(async (req, res) => {
           new ApiResponse(
             400,
             null,
-            "Order has been already Accepted or rejected'"
+            "Order has been already Accepted or rejected"
           )
         );
     }
