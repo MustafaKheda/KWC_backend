@@ -63,8 +63,13 @@ function createOrderWhatsAppTemplate(
     )
     .join("");
 
-  const acceptUrl = `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Inprogress`; // URL to confirm the order
-  const rejectUrl = `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Canceled`; // URL to reject the order
+  const acceptUrl = encodeURI(
+    `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Inprogress`
+  ); // URL to confirm the order
+  const rejectUrl = encodeURI(
+    `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Canceled`
+  ); // URL to reject the order
+
   return `
 *New Order Received*
 Order ID: ${_id}
@@ -91,10 +96,11 @@ Total: KWD ${total.toFixed(2)}
 
 Please process this order as soon as possible. Thank you!
 
+To reject the order, click the link below:
+${rejectUrl}
 To confirm the order, click the link below:
 ${acceptUrl}
 
-To reject the order, click the link below:
-${rejectUrl}
+
     `;
 }
