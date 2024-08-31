@@ -226,14 +226,12 @@ const confirmOrder = asyncHandler(async (req, res) => {
 
     // Send email to customer
     await sendEmailToCustomer(updatedOrder, productDetails, status);
-    if (status === "Inprogress") {
-      return res
-        .status(200)
-        .json(new ApiResponse(201, updatedOrder, "Order Confirmed"));
-    }
-    return res
-      .status(200)
-      .json(new ApiResponse(201, updatedOrder, "Order Rejected"));
+    const smsContent =
+      status === "Inprogress"
+        ? "Order confirmed. Successfully."
+        : "Order rejected. Successfully";
+
+    res.status(200).send(`<h2>${smsContent}</h2>`);
   } catch (error) {
     console.error("Error confirming order:", error);
     return res
