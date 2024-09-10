@@ -28,7 +28,6 @@ const getAddressId = async (data, userId) => {
   });
 
   if (existedAddress) {
-    console.log("Already created");
     return existedAddress._id;
   }
   const updatedUser = await User.findByIdAndUpdate(
@@ -46,7 +45,7 @@ const getAddressId = async (data, userId) => {
 
 const createOrder = asyncHandler(async (req, res) => {
   const { user_id, address_data, order_items, delivery_charge } = req.body;
-  console.log(req.body);
+
   const baseUrl = `${req.protocol}://${req.get("host")}`;
   // Validate user ID
   const user = await User.findById(user_id);
@@ -171,7 +170,7 @@ const confirmOrder = asyncHandler(async (req, res) => {
   }
   try {
     const order = await Order.findById(id);
-    console.log(order)
+
     if (!order) {
       return res
         .status(404)

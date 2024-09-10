@@ -6,8 +6,8 @@ const router = Router();
 router.get("/order/edit/:id", async (req, res) => {
   try {
     const orderId = req.params.id;
-    const baseUrl = `${req.protocol}://${req.get("host")}`;//Dynamical getting base url
-
+    const baseUrl = `${req.protocol}://${req.get("host")}`; //Dynamical getting base url
+    console.log(baseUrl,"Base URL");
     const order = await Order.findById(orderId).populate(
       "order_items.product_id"
     );
