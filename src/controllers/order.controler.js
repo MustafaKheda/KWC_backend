@@ -8,7 +8,7 @@ import Product from "../models/product.model.js";
 import { Order } from "../models/order.model.js";
 import { sendEmailToCustomer, sendEmailToVendor } from "../utils/Email.js";
 import { sendTovendor } from "../utils/WhatsappAPI.js";
-
+import fetchAndEmailOrder from "../utils/fetchAndEmailOrder.js";
 const getAddressId = async (data, userId) => {
   const { email: newEmail, ...addressData } = data;
   const { area, block, street, avenue, houseNumber } = addressData;
@@ -171,6 +171,7 @@ const confirmOrder = asyncHandler(async (req, res) => {
   }
   try {
     const order = await Order.findById(id);
+    console.log(order)
     if (!order) {
       return res
         .status(404)
@@ -193,45 +194,8 @@ const confirmOrder = asyncHandler(async (req, res) => {
       { status },
       { new: true }
     );
-
-    const productIds = updatedOrder.order_items.map((item) => item.product_id);
-
-    // Fetch product details using aggregation
-    const products = await Product.aggregate([
-      { $match: { _id: { $in: productIds } } },
-      {
-        $project: {
-          _id: 1,
-          name: 1,
-          unit: "$attributes.size_unit",
-        },
-      },
-    ]);
-
-    // Create a map of product IDs to names and units for quick lookup
-    const productMap = products.reduce((map, product) => {
-      map[product._id.toString()] = { name: product.name, unit: product.unit };
-      return map;
-    }, {});
-
-    // Map order items to include product details
-    const productDetails = updatedOrder.order_items.map((item) => ({
-      product_id: item.product_id,
-      name: productMap[item.product_id.toString()]?.name || "Unknown Product",
-      unit: productMap[item.product_id.toString()]?.unit || "Unknown Unit",
-      price: item.price,
-      size: item.size,
-      quantity: item.quantity,
-    }));
-
-    // Send email to customer
-    await sendEmailToCustomer(updatedOrder, productDetails, status);
-    const smsContent =
-      status === "Inprogress"
-        ? "Order confirmed. Successfully."
-        : "Order rejected. Successfully";
-
-    res.status(200).send(`<h2>${smsContent}</h2>`);
+    const smsContent = await fetchAndEmailOrder(updatedOrder, status);
+      res.status(200).send(`<h2>${smsContent}</h2>`);
   } catch (error) {
     console.error("Error confirming order:", error);
     return res

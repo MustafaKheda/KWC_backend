@@ -21,7 +21,7 @@ export const sendEmailToVendor = async (order, products, baseUrl) => {
 
   var mailOptions = {
     from: `Beautify <${process.env.EMAIL}>`, // sender address
-    to: "mustafa.kheda@kadellabs.com", // list of receivers
+    to: "maad009bohra@gmail.com", // list of receivers
     subject: "Order Confirmation", // Subject line
     html: createOrderEmailTemplate(order, products, customer, address, baseUrl), // html body
   };
@@ -88,8 +88,13 @@ function createOrderEmailTemplate(order, products, customer, address, baseUrl) {
     `
     )
     .join("");
-  const acceptUrl = `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Inprogress`; // Replace with your actual accept URL
-  const rejectUrl = `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Canceled`; // Replace with your actual reject URL
+ // Replace with your actual reject URL
+ const acceptUrl = encodeURI(
+  `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Inprogress`
+); // URL to confirm the order
+const rejectUrl = encodeURI(
+  `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Canceled`
+); // URL to reject the order
   return `
     <!DOCTYPE html>
     <html lang="en">
@@ -120,6 +125,8 @@ function createOrderEmailTemplate(order, products, customer, address, baseUrl) {
     address.lastName || ""
   }</p>
             <p><strong>Email:</strong> ${customer.email}</p>
+            <p><strong>Mobile Number:</strong> ${customer.mobileNumber}</p>
+
             <h2>Shipping Address</h2>
             <p><strong>Area:</strong> ${address.area}</p>
             <p><strong>Block:</strong> ${address.block}</p>
