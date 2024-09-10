@@ -221,10 +221,10 @@
             }
         }
         function rejectOrder(orderId) {
-            const baseUrl = '<%= baseUrl %>'; // Make sure to set baseUrl correctly
-            const rejectUrl = encodeURI(
+          const baseUrl = '<%= baseUrl %>'; // Make sure to set baseUrl correctly
+          console.log(baseUrl)
+            const rejectUrl =
                 `${baseUrl}/api/v1/order/confirm?id=${orderId}&status=Canceled`
-            );
 
             fetch(rejectUrl, {
                 method: 'POST',
