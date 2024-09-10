@@ -176,17 +176,17 @@ const confirmOrder = asyncHandler(async (req, res) => {
         .status(404)
         .json(new ApiResponse(404, null, "Order not found"));
     }
-    if (order.status !== "Pending") {
-      return res
-        .status(400)
-        .json(
-          new ApiResponse(
-            400,
-            null,
-            "Order has been already Accepted or rejected"
-          )
-        );
-    }
+    // if (order.status !== "Pending") {
+    //   return res
+    //     .status(400)
+    //     .json(
+    //       new ApiResponse(
+    //         400,
+    //         null,
+    //         "Order has been already Accepted or rejected"
+    //       )
+    //     );
+    // }
     // Update the order status
     const updatedOrder = await Order.findByIdAndUpdate(
       id,
