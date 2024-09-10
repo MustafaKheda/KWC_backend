@@ -6,8 +6,10 @@ const router = Router();
 router.get("/order/edit/:id", async (req, res) => {
   try {
     const orderId = req.params.id;
-    const baseUrl = `${req.protocol}://${req.get("host")}`; //Dynamical getting base url
-    console.log(baseUrl,"Base URL");
+    const protocol = req.get("host").includes("localhost") ? "http" : "https";
+    console.log(protocol)
+    const baseUrl = `${protocol}://${req.get("host")}`; //Dynamical getting base url
+    console.log(baseUrl, "Base URL");
     const order = await Order.findById(orderId).populate(
       "order_items.product_id"
     );
