@@ -22,7 +22,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://beautify-next-main-ij823f5ec-mustafakhedas-projects.vercel.app", // Your frontend URL",
+      "https://beautify-next-main.vercel.app", // Your frontend URL",
     ],
   })
 );
