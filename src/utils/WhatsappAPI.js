@@ -5,11 +5,11 @@ import { User } from "../models/user.model.js";
 
 export const sendTovendor = async (order, products, baseUrl) => {
   console.log(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-
   const client = twilio(
     process.env.TWILIO_ACCOUNT_SID,
     process.env.TWILIO_AUTH_TOKEN
   );
+  console.log(client);
 
   const customer = await User.findById(order.user_id).select(
     "email mobileNumber"
@@ -39,10 +39,10 @@ export const sendTovendor = async (order, products, baseUrl) => {
       to: `whatsapp:+919680151370`,
       body: message,
     });
-    console.log(response);
-    return { response: response, error: null };
+    console.log(response, "whatsapp response");
+    return { response, error: null };
   } catch (error) {
-    console.log(error);
+    console.log(error, "whatsapp error");
     return { response: null, error: error };
   }
 };

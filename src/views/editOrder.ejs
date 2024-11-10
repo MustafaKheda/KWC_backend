@@ -157,9 +157,11 @@
           </tr>
         </thead>
         <tbody>
-          <% let overallTotal = 0; %> <% order.order_items.forEach((item, index)
-          => { const total = (item.quantity * item.price).toFixed(2);
-          overallTotal += parseFloat(total); %>
+          <!-- prettier-ignore -->
+          <% let overallTotal = 0; %>
+           <% order.order_items.forEach((item, index) => { %> 
+            <% const total = (item.quantity * item.price).toFixed(2); %>
+            <% overallTotal += parseFloat(total); %>
           <tr>
             <td data-label="Product Name"><%= item.product_id.name %></td>
             <td data-label="Quantity">
@@ -215,17 +217,12 @@
         Total: KWD
         <span id="overall-total"><%= overallTotal.toFixed(2) %></span>
       </div>
-      <button
-        class="submit-button"
-        onclick="changeOrderStatus('<%= order._id %>','Order Accepted')"
-      >
-        Accept Order
-      </button>
+      <button type="submit" class="submit-button">Accept Order</button>
     </form>
     <button
       type="button"
       class="submit-button"
-      onclick="changeOrderStatus('<%= order._id %>','Order Rejected')"
+      onclick="changeOrderStatus('<%= order._id %>', 'Order Rejected')"
     >
       Reject Order
     </button>
@@ -271,8 +268,9 @@
           calculateTotal(index);
         }
       }
+
       function changeOrderStatus(orderId, status) {
-        const baseUrl = "<%= baseUrl %>"; // Make sure to set baseUrl correctly
+        const baseUrl = "<%= baseUrl %>";
         const rejectUrl = `${baseUrl}/api/v1/order/confirm?id=${orderId}&status=${status}`;
         fetch(rejectUrl, {
           method: "POST",
@@ -282,7 +280,7 @@
         })
           .then((response) => {
             if (response.ok) {
-              alert("Order Rejected Successfully");
+              alert(`Order ${status} Successfully`);
             }
             console.log(response);
           })
@@ -292,13 +290,12 @@
           });
       }
 
-      // Initial calculation
       document.addEventListener("DOMContentLoaded", () => {
         document
           .querySelectorAll('input[type="number"]')
           .forEach((input, index) => {
             input.addEventListener("change", () => calculateTotal(index));
-            calculateTotal(index); // Ensure total is calculated on load
+            calculateTotal(index);
           });
       });
     </script>

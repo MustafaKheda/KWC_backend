@@ -1,5 +1,6 @@
 import Product from "../models/product.model.js";
 import { sendEmailToCustomer } from "./Email.js";
+import { OrderStatus } from "./OrderStatus.js";
 
 const fetchAndEmailOrder = async (order, status) => {
   try {
@@ -34,7 +35,7 @@ const fetchAndEmailOrder = async (order, status) => {
     // Send email to customer
     await sendEmailToCustomer(order, productDetails, status);
     const smsContent =
-      status === "Inprogress"
+      status === OrderStatus.ORDER_ACCEPTED
         ? "Order confirmed. Successfully."
         : "Order rejected. Successfully";
     return smsContent;

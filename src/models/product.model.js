@@ -181,7 +181,5 @@ productSchema.statics.restock = async function (productId, quantity) {
     console.log(error);
   }
 };
-console.log(productSchema);
 const Product = mongoose.model("Product", productSchema);
-console.log(Product);
 export default Product;

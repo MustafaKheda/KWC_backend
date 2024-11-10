@@ -253,8 +253,6 @@ export const allProduct = async (req, res) => {
     }
     const totalItems = await Product.countDocuments({ isActive: true });
     const totalPages = Math.ceil(totalItems / limitNumber);
-    console.log(totalPages);
-
     res.status(200).json(
       new ApiResponse(
         200,
