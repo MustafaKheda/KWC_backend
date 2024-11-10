@@ -1,4 +1,4 @@
-  import express from "express";
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
@@ -16,16 +16,19 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();   
+const app = express();
 
 app.use(
   cors({
-    origin: "*",
+    origin: [
+      "http://localhost:3000",
+      "https://beautify-next-main-ij823f5ec-mustafakhedas-projects.vercel.app", // Your frontend URL",
+    ],
   })
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-app.use(cookieParser()); 
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
