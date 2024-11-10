@@ -40,7 +40,7 @@ const fetchAndEmailOrder = async (order, status) => {
     return smsContent;
   } catch (error) {
     console.log(error);
-    res.status(500).send({ message: "Server error",error });
+    res.status(500).send({ message: "Server error", error });
   }
 };
 export default fetchAndEmailOrder;

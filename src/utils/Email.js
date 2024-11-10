@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import nodemailer from "nodemailer";
 import { User } from "../models/user.model.js";
 import { Address } from "../models/address.model.js";
+import { OrderStatus } from "./OrderStatus.js";
 export const sendEmailToVendor = async (order, products, baseUrl) => {
   const customer = await User.findById(order.user_id).select(
     "email mobileNumber"
@@ -88,13 +89,13 @@ function createOrderEmailTemplate(order, products, customer, address, baseUrl) {
     `
     )
     .join("");
- // Replace with your actual reject URL
- const acceptUrl = encodeURI(
-  `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Inprogress`
-); // URL to confirm the order
-const rejectUrl = encodeURI(
-  `${baseUrl}/api/v1/order/confirm?id=${_id}&status=Canceled`
-); // URL to reject the order
+  // Replace with your actual reject URL
+  const acceptUrl = encodeURI(
+    `${baseUrl}/api/v1/order/confirm?id=${_id}&status=${OrderStatus.ORDER_ACCEPTED}`
+  ); // URL to confirm the order
+  const rejectUrl = encodeURI(
+    `${baseUrl}/api/v1/order/confirm?id=${_id}&status=${OrderStatus.ORDER_CANCELED}`
+  ); // URL to reject the order
   return `
     <!DOCTYPE html>
     <html lang="en">

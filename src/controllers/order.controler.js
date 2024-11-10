@@ -291,7 +291,7 @@ const confirmOrder = asyncHandler(async (req, res) => {
     await newTransition.save({ session });
 
     // Restock products if the status is 'Canceled'
-    if (status === "Canceled") {
+    if (status === OrderStatus.ORDER_CANCELED) {
       // Ensure the stock is restored for each product in the order
       for (let item of order.order_items) {
         await Product.findOneAndUpdate(
