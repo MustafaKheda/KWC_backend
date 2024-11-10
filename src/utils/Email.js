@@ -13,6 +13,7 @@ export const sendEmailToVendor = async (order, products, baseUrl) => {
   var smtpConfig = {
     host: "smtp.gmail.com",
     port: 465,
+    secure: true, // Use SSL for port 465
     auth: {
       user: process.env.EMAIL,
       pass: process.env.EMAIL_PASS,
@@ -26,14 +27,12 @@ export const sendEmailToVendor = async (order, products, baseUrl) => {
     subject: "Order Confirmation", // Subject line
     html: createOrderEmailTemplate(order, products, customer, address, baseUrl), // html body
   };
-
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log("Email sent: " + info.response);
-    }
-  });
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: " + info.response);
+  } catch (error) {
+    console.error("Failed to send email:", error);
+  }
 };
 
 export const sendEmailToCustomer = async (order, products) => {
@@ -43,6 +42,7 @@ export const sendEmailToCustomer = async (order, products) => {
   var smtpConfig = {
     host: "smtp.gmail.com",
     port: 465,
+    secure: true, // Use SSL for port 465
     auth: {
       user: process.env.EMAIL,
       pass: process.env.EMAIL_PASS,
@@ -56,14 +56,12 @@ export const sendEmailToCustomer = async (order, products) => {
     html: createOrderConfirmEmailTemplate(order, products), // html body
   };
 
-  transporter.sendMail(mailOptions, function (error, info) {
-    if (error) {
-      console.log(error);
-    } else {
-      console.log(info);
-      console.log("Email sent: " + info.response);
-    }
-  });
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent: " + info.response);
+  } catch (error) {
+    console.error("Failed to send email:", error);
+  }
 };
 
 //Templates
