@@ -22,7 +22,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://beautify-next-main.vercel.app", // Your frontend URL",
+      "https://beautify-next-main.vercel.app",
+      "https://kuwaitcosmetics.com/", // Your frontend URL",
     ],
   })
 );
