@@ -39,7 +39,7 @@ export const sendTovendor = async (order, products, baseUrl) => {
       to: `whatsapp:+919680151370`,
       body: message,
     });
-    console.log(response)
+    console.log(response);
     return { response: response, error: null };
   } catch (error) {
     console.log(error);
