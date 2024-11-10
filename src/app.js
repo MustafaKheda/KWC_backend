@@ -23,7 +23,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "https://beautify-next-main.vercel.app",
-      "https://kuwaitcosmetics.com/", // Your frontend URL",
+      "https://kuwaitcosmetics.com", // Your frontend URL",
     ],
   })
 );
