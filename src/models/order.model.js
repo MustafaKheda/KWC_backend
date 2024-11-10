@@ -1,5 +1,5 @@
 import mongoose, { Schema } from "mongoose";
-
+import { OrderStatus } from "../utils/OrderStatus.js";
 const orderSchema = new Schema(
   {
     user_id: {
@@ -49,7 +49,7 @@ const orderSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Inprogess", "Failed", "Canceled", "Success"],
+      enum: Object.values(OrderStatus),
       required: [true, "Status is required"],
       default: "Pending",
     },

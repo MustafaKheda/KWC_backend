@@ -5,6 +5,7 @@ import Product from "../models/product.model.js";
 import { Category } from "../models/category.model.js";
 import { Subcategory } from "../models/subcategory.model.js";
 import mongoose from "mongoose";
+import { getPagination } from "../utils/pagination.js";
 
 function calculateDiscountedPrice(pricing, promotions) {
   // Check if base_price is a valid number
@@ -45,7 +46,6 @@ export const createProduct = asyncHandler(async (req, res) => {
     description,
     category_id,
     subcategory_id,
-    pricing,
     inventory,
     images,
     attributes,
@@ -62,22 +62,19 @@ export const createProduct = asyncHandler(async (req, res) => {
   if (!category_id) {
     throw new ApiError(400, "Missing required field: category_id");
   }
-  if (!pricing) {
-    throw new ApiError(400, "Missing required field: pricing");
-  }
-  if (!inventory) {
-    throw new ApiError(400, "Missing required field: inventory");
-  }
   if (!images) {
     throw new ApiError(400, "Missing required field: images");
   }
   // Validate pricing
-  pricing.forEach((price) => {
+  inventory.forEach((price) => {
     if (!price.base_price || !price.cost) {
       throw new ApiError(
         400,
         `Missing required pricing fields with size ${price.size}`
       );
+    }
+    if (!price.stock_quantity) {
+      throw new ApiError(400, "Missing required inventory fields");
     }
     // If promotions are provided, calculate the discounted price
     if (promotions && promotions.discount_percentage) {
@@ -87,10 +84,6 @@ export const createProduct = asyncHandler(async (req, res) => {
     }
   });
 
-  // Validate inventory
-  if (!inventory.stock_quantity) {
-    throw new ApiError(400, "Missing required inventory fields");
-  }
   // Validate images
   if (!images.main_image) {
     throw new ApiError(400, "Missing main image");
@@ -101,7 +94,6 @@ export const createProduct = asyncHandler(async (req, res) => {
     description,
     category_id,
     subcategory_id,
-    pricing,
     inventory,
     images,
     attributes,
@@ -110,11 +102,11 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   await product.save();
   const newProduct = await Product.findById(product._id).select(
-    "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
+    "-isActive -inventory.cost -attributes.weight -promotions.sale_end_date"
   );
   res
-    .status(201)
-    .json(new ApiResponse(201, newProduct, "Product created successfully"));
+    .status(200)
+    .json(new ApiResponse(200, newProduct, "Product created successfully"));
 });
 
 export const createMultipleProducts = asyncHandler(async (req, res) => {
@@ -131,7 +123,6 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
       description,
       category_id,
       subcategory_id,
-      pricing,
       inventory,
       images,
       attributes,
@@ -148,23 +139,21 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
     if (!category_id) {
       throw new ApiError(400, "Missing required field: category_id");
     }
-    if (!pricing) {
-      throw new ApiError(400, "Missing required field: pricing");
-    }
-    if (!inventory) {
-      throw new ApiError(400, "Missing required field: inventory");
-    }
     if (!images) {
       throw new ApiError(400, "Missing required field: images");
     }
 
     // Validate pricing
-    pricing.forEach((price) => {
+    inventory.forEach((price) => {
       if (!price.base_price || !price.cost) {
         throw new ApiError(
           400,
           `Missing required pricing fields with size ${price.size}`
         );
+      }
+      // Validate inventory
+      if (!price.stock_quantity) {
+        throw new ApiError(400, "Missing required inventory fields");
       }
       // If promotions are provided, calculate the discounted price
       if (promotions && promotions.discount_percentage) {
@@ -174,21 +163,15 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
       }
     });
 
-    // Validate inventory
-    if (!inventory.stock_quantity) {
-      throw new ApiError(400, "Missing required inventory fields");
-    }
     // Validate images
     if (!images.main_image) {
       throw new ApiError(400, "Missing main image");
     }
-
     return {
       name,
       description,
       category_id,
       subcategory_id,
-      pricing,
       inventory,
       images,
       attributes,
@@ -203,70 +186,103 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
   const newProducts = await Product.find({
     _id: { $in: insertedProducts.map((p) => p._id) },
   }).select(
-    "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
+    "-isActive -inventory.cost -attributes.weight -promotions.sale_end_date"
   );
 
   res
-    .status(201)
-    .json(new ApiResponse(201, newProducts, "Products created successfully"));
+    .status(200)
+    .json(new ApiResponse(200, newProducts, "Products created successfully"));
 });
 
-const allProduct =async() => {
-  const products = await Product.aggregate([
-    { $match: { isActive: true } },
-    {
-      $lookup: {
-        from: "categories", // Replace with the actual name of the category collection
-        localField: "category_id",
-        foreignField: "_id",
-        as: "category",
-      },
-    },
-    {
-      $lookup: {
-        from: "subcategories", // Replace with the actual name of the subcategory collection
-        localField: "subcategory_id",
-        foreignField: "_id",
-        as: "subcategory",
-      },
-    },
-    {
-      $project: {
-        name: 1,
-        description: 1,
-        pricing: {
-          size: 1,
-          base_price: 1,
-          discounted_price: 1,
-        },
-        categories: {
-          $concatArrays: ["$category.name", "$subcategory.name"],
-        },
-        inventory: 1,
-        category_id: 1,
-        subcategory_id: 1,
-        images: 1,
-        attributes: 1,
-        customer_reviews: 1,
-        promotions: {
-          discount_percentage: 1,
+export const allProduct = async (req, res) => {
+  const id = req.params.id;
+  const { page, limit } = req.query;
+  const { skip, limit: limitNumber } = getPagination(page, limit);
+  try {
+    const products = await Product.aggregate([
+      { $match: { isActive: true } },
+      {
+        $lookup: {
+          from: "categories", // Replace with the actual name of the category collection
+          localField: "category_id",
+          foreignField: "_id",
+          as: "category",
         },
       },
-    },
-  ]);
-  if (!products || products.length < 1) {
-    throw new ApiError(404, "Product not found");
-  }
-  // res.status(200).json(new ApiResponse(200, products, "Fetched All Product"));
-  return products
+      {
+        $lookup: {
+          from: "subcategories", // Replace with the actual name of the subcategory collection
+          localField: "subcategory_id",
+          foreignField: "_id",
+          as: "subcategory",
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          description: 1,
+          categories: {
+            $concatArrays: ["$category.name", "$subcategory.name"],
+          },
+          inventory: {
+            size: 1,
+            base_price: 1,
+            discounted_price: 1,
+            stock_quantity: 1,
+            supplier: 1,
+          },
+          category_id: 1,
+          subcategory_id: 1,
+          images: 1,
+          attributes: 1,
+          customer_reviews: 1,
+          promotions: {
+            discount_percentage: 1,
+          },
+        },
+      },
+      // { $skip: skip }, // Pagination skip
+      // { $limit: limitNumber }, // Pagination limit
+    ]);
+    if (!products || products.length < 1) {
+      throw new ApiError(404, "Product not found");
+    }
 
+    if (id) {
+      return products;
+    }
+    const totalItems = await Product.countDocuments({ isActive: true });
+    const totalPages = Math.ceil(totalItems / limitNumber);
+    console.log(totalPages);
+
+    res.status(200).json(
+      new ApiResponse(
+        200,
+        {
+          products,
+          totalPages,
+          totalItems,
+          currentPage: parseInt(page, 10) || 1,
+        },
+        "Fetched All Products"
+      )
+    );
+    // res.status(200).json(new ApiResponse(200, products, "Fetched All Product"));
+  } catch (error) {
+    throw new ApiError(500, error.message);
+  }
 };
 
 export const productByCategory = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  if( id==='all'){
-    const products=await allProduct()
- return res.status(200).json(new ApiResponse(200,products, "Fetched All Product"));
+  const { page, limit } = req.query;
+  const { skip, limit: limitNumber } = getPagination(page, limit);
+  const categoryId = req.params.id;
+  if (id === "all") {
+    const products = await allProduct(req, res);
+    return res
+      .status(200)
+      .json(new ApiResponse(200, products, "Fetched All Product"));
   }
   if (!id) {
     throw new ApiError(400, "Category ID is required");
@@ -282,8 +298,8 @@ export const productByCategory = asyncHandler(async (req, res) => {
       $match: {
         isActive: true,
         $or: [
-          { category_id: new mongoose.Types.ObjectId(id) },
-          { subcategory_id: new mongoose.Types.ObjectId(id) },
+          { category_id: new mongoose.Types.ObjectId(categoryId) },
+          { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
         ],
       },
     },
@@ -313,11 +329,6 @@ export const productByCategory = asyncHandler(async (req, res) => {
       $project: {
         name: 1,
         description: 1,
-        pricing: {
-          size: 1,
-          base_price: 1,
-          discounted_price: 1,
-        },
         categories: {
           $filter: {
             input: [
@@ -328,7 +339,13 @@ export const productByCategory = asyncHandler(async (req, res) => {
             cond: { $ne: ["$$name", null] },
           },
         },
-        inventory: 1,
+        inventory: {
+          size: 1,
+          base_price: 1,
+          discounted_price: 1,
+          stock_quantity: 1,
+          supplier: 1,
+        },
         category_id: 1,
         subcategory_id: 1,
         images: 1,
@@ -355,15 +372,32 @@ export const productByCategory = asyncHandler(async (req, res) => {
   //     },
   //   },
   // ]);
-  console.log(products);
-  // console.log(product);
+  const totalItems = await Product.countDocuments({
+    isActive: true,
+    $or: [{ category_id: categoryId }, { subcategory_id: categoryId }],
+  });
+  const totalPages = Math.ceil(totalItems / limitNumber);
+
   if (!products || products.length < 1) {
     // throw new ApiError(404, "Product not found");
     return res.status(404).json(new ApiResponse(404, [], "Product not found"));
   }
-  res
-    .status(201)
-    .json(new ApiResponse(201, products, "Fetched Product by Category"));
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        products,
+        totalPages,
+        totalItems,
+        currentPage: parseInt(page, 10) || 1,
+      },
+      "Fetched Products by Category"
+    )
+  );
+  // res
+  //   .status(201)
+  //   .json(new ApiResponse(201, products, "Fetched Product by Category"));
 });
 
 export const productBySubCategory = asyncHandler(async (req, res) => {
@@ -379,7 +413,7 @@ export const productBySubCategory = asyncHandler(async (req, res) => {
   const products = await Product.find({
     subcategory_id,
     isActive: true,
-  }).select("-pricing.cost -promotions.sale_end_date");
+  }).select("-inventory.cost -promotions.sale_end_date");
 
   if (!products || products.length < 1) {
     throw new ApiError(404, "Product not found");
@@ -427,15 +461,16 @@ export const productByID = asyncHandler(async (req, res) => {
       $project: {
         name: 1,
         description: 1,
-        pricing: {
-          size: 1,
-          base_price: 1,
-          discounted_price: 1,
-        },
         categories: {
           $concatArrays: ["$category.name", "$subcategory.name"],
         },
-        inventory: 1,
+        inventory: {
+          size: 1,
+          base_price: 1,
+          discounted_price: 1,
+          stock_quantity: 1,
+          supplier: 1,
+        },
         category_id: 1,
         subcategory_id: 1,
         images: 1,
@@ -492,15 +527,16 @@ export const searchProducts = asyncHandler(async (req, res) => {
       $project: {
         name: 1,
         description: 1,
-        pricing: {
-          size: 1,
-          base_price: 1,
-          discounted_price: 1,
-        },
         categories: {
           $concatArrays: ["$category.name", "$subcategory.name"],
         },
-        inventory: 1,
+        inventory: {
+          size: 1,
+          base_price: 1,
+          discounted_price: 1,
+          stock_quantity: 1,
+          supplier: 1,
+        },
         category_id: 1,
         subcategory_id: 1,
         images: 1,
