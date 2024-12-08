@@ -14,19 +14,19 @@ import brandRouter from "./routes/brand.route.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
+import dotenv from "dotenv";
 
+// Load environment variables from .env file
+dotenv.config();
 // Recreate __dirname and __filename
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:5173",
-  "https://beautify-next-main.vercel.app",
-  "https://kuwaitcosmetics.com",
-];
 
+// Get the allowed origins from environment variable
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [];
+console.log(allowedOrigins)
 app.use(
   cors({
     origin: (origin, callback) => {
