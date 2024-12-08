@@ -5,9 +5,12 @@ import cookieParser from "cookie-parser";
 import userRouter from "./routes/user.route.js";
 import addressRouter from "./routes/address.route.js";
 import categoryRouter from "./routes/category.route.js";
+import subcategoryRouter from "./routes/subcategory.route.js";
+
 import productRouter from "./routes/product.route.js";
 import orderRouter from "./routes/order.route.js";
 import adminRouter from "./routes/admin.route.js";
+import brandRouter from "./routes/brand.route.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -17,14 +20,23 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://beautify-next-main.vercel.app",
+  "https://kuwaitcosmetics.com",
+];
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://beautify-next-main.vercel.app",
-      "https://kuwaitcosmetics.com", // Your frontend URL",
-    ],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -42,7 +54,11 @@ app.get("/", (req, res) => {
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/address", addressRouter);
 app.use("/api/v1/category", categoryRouter);
+app.use("/api/v1/subcategory", subcategoryRouter);
 app.use("/api/v1/product", productRouter);
 app.use("/api/v1/order", orderRouter);
+app.use("/api/v1/brand", brandRouter);
+
 app.use("/admin", adminRouter);
+
 export { app };

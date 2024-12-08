@@ -326,6 +326,6 @@ const confirmOrder = asyncHandler(async (req, res) => {
   }
 });
 
-const getAllOrder = asyncHandler(async (req, res) => {});
+const getAllOrder = asyncHandler(async (req, res) => { });
 
 export { createOrder, getAllOrder, confirmOrder };

@@ -36,7 +36,7 @@ export const sendTovendor = async (order, products, baseUrl) => {
   try {
     const response = await client.messages.create({
       from: "whatsapp:+14155238886", // Replace with your Twilio WhatsApp-enabled number
-      to: `whatsapp:+919680151370`,
+      to: `whatsapp:+919116925292`,
       body: message,
     });
     console.log(response, "whatsapp response");
@@ -65,11 +65,10 @@ function createOrderWhatsAppTemplate(
   let orderItemsText = order_items
     .map(
       (item) => `
-- ${productMap.get(item.product_id.toString())}, Quantity: ${
-        item.quantity
-      }, Size: ${item.size}${productUnitMap.get(
-        item.product_id.toString()
-      )}, Price: KWD ${item.price.toFixed(2)}
+- ${productMap.get(item.product_id.toString())}, Quantity: ${item.quantity
+        }, Size: ${item.size}${productUnitMap.get(
+          item.product_id.toString()
+        )}, Price: KWD ${item.price.toFixed(2)}
     `
     )
     .join("");
@@ -147,8 +146,7 @@ export const sendOrderConfirmation = async (
     order.order_items
       .map(
         (item) =>
-          `- ${productMap.get(item.product_id.toString())}, Quantity: ${
-            item.quantity
+          `- ${productMap.get(item.product_id.toString())}, Quantity: ${item.quantity
           }, Size: ${item.size}${productUnitMap.get(
             item.product_id.toString()
           )}, Price: KWD ${item.price.toFixed(2)}`

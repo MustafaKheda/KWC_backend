@@ -1,27 +1,4 @@
 import mongoose, { Schema } from "mongoose";
-// const pricingSchema = new Schema(
-//   {
-//     size: Number,
-//     base_price: {
-//       type: Number,
-//       required: true,
-//       trim: true,
-//       min: 0,
-//     },
-//     discounted_price: {
-//       type: Number,
-//       trim: true,
-//     },
-//     cost: {
-//       type: Number,
-//       required: true,
-//       trim: true,
-//       min: 0,
-//     },
-//   },
-//   { _id: false }
-// );
-
 const inventorySchema = new Schema(
   {
     stock_quantity: {
@@ -66,6 +43,7 @@ const imageSchema = new Schema(
 
 const productSchema = new Schema(
   {
+    product_id: { type: String, required: true }, // Use your frontend-generated ID here
     name: {
       type: String,
       unique: true,
@@ -80,6 +58,11 @@ const productSchema = new Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive", "Draft"], // Restricts values to these options
+      default: "Draft", // Sets the default value to 'active'
     },
     category_id: {
       type: Schema.Types.ObjectId,
@@ -106,6 +89,15 @@ const productSchema = new Schema(
         type: String,
         trim: true,
       },
+      SKU: {
+        type: String,
+        trim: true,
+      }
+    },
+    brand_name: {
+      type: String,
+      required: true,
+      trim: true,
     },
     customer_reviews: {
       ratings: {
@@ -141,7 +133,7 @@ const productSchema = new Schema(
   },
   { timestamps: true }
 );
-
+// console.log(productSchema)
 // Method to adjust stock when an order is placed
 productSchema.statics.adjustStock = async function (productId, quantity) {
   try {

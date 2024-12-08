@@ -2,8 +2,6 @@ import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import Product from "../models/product.model.js";
-import { Category } from "../models/category.model.js";
-import { Subcategory } from "../models/subcategory.model.js";
 import mongoose from "mongoose";
 import { getPagination } from "../utils/pagination.js";
 
@@ -41,72 +39,105 @@ function calculateDiscountedPrice(pricing, promotions) {
 }
 
 export const createProduct = asyncHandler(async (req, res) => {
-  const {
-    name,
-    description,
-    category_id,
-    subcategory_id,
-    inventory,
-    images,
-    attributes,
-    promotions,
-  } = req.body;
+  try {
 
-  // Check required fields
-  if (!name) {
-    throw new ApiError(400, "Missing required field: name");
-  }
-  if (!description) {
-    throw new ApiError(400, "Missing required field: description");
-  }
-  if (!category_id) {
-    throw new ApiError(400, "Missing required field: category_id");
-  }
-  if (!images) {
-    throw new ApiError(400, "Missing required field: images");
-  }
-  // Validate pricing
-  inventory.forEach((price) => {
-    if (!price.base_price || !price.cost) {
-      throw new ApiError(
-        400,
-        `Missing required pricing fields with size ${price.size}`
-      );
+
+    const {
+      product_id,
+      name,
+      description,
+      category_id,
+      subcategory_id,
+      inventory,
+      images,
+      attributes,
+      promotions,
+      brand_name,
+    } = req.body;
+    console.log(req.body)
+
+    // Check required fields
+    if (!name) {
+      throw new ApiError(400, "Missing required field: name");
     }
-    if (!price.stock_quantity) {
-      throw new ApiError(400, "Missing required inventory fields");
+    if (!description) {
+      throw new ApiError(400, "Missing required field: description");
     }
-    // If promotions are provided, calculate the discounted price
-    if (promotions && promotions.discount_percentage) {
-      price.discounted_price = calculateDiscountedPrice(price, promotions);
+    if (!category_id) {
+      throw new ApiError(400, "Missing required field: category_id");
+    }
+    if (!images) {
+      throw new ApiError(400, "Missing required field: images");
+    }
+    if (!brand_name) {
+      throw new ApiError(400, "Missing required field: brand name");
+    }
+    // Validate pricing
+    inventory.forEach((price) => {
+      if (!price.base_price || !price.cost) {
+        throw new ApiError(
+          400,
+          `Missing required pricing fields with size ${price.size}`
+        );
+      }
+      if (!price.stock_quantity) {
+        throw new ApiError(400, "Missing required inventory fields");
+      }
+      // if discounted price is already provide considar that only
+      if (price.discounted_price) {
+        return
+      }
+      // If promotions are provided, calculate the discounted price
+      if (promotions && promotions.discount_percentage) {
+        price.discounted_price = calculateDiscountedPrice(price, promotions);
+      } else {
+        price.discounted_price = price.base_price;
+      }
+    });
+
+    // Validate images
+    if (!images.main_image) {
+      throw new ApiError(400, "Missing main image");
+    }
+
+    const product = new Product({
+      product_id,
+      name,
+      description,
+      category_id,
+      subcategory_id,
+      inventory,
+      images,
+      attributes,
+      promotions,
+      brand_name
+    });
+
+    await product.save();
+    const newProduct = await Product.findById(product._id).select(
+      "-isActive -inventory.cost -attributes.weight -promotions.sale_end_date"
+    );
+    res
+      .status(200)
+      .json(new ApiResponse(200, newProduct, "Product created successfully"));
+  } catch (error) {
+    if (error.code === 11000) {
+      // Duplicate key error handling
+      res.status(400).json({
+        status: 'duplicate_key_error',
+        message: `Product with name '${req.body.name}' already exists.`,
+        details: error.message
+      });
     } else {
-      price.discounted_price = price.base_price;
+      // Other errors
+      res.status(500).json({
+        status: 'server_error',
+        message: 'An error occurred while adding the product.',
+        details: error.message
+      });
     }
-  });
-
-  // Validate images
-  if (!images.main_image) {
-    throw new ApiError(400, "Missing main image");
   }
 
-  const product = new Product({
-    name,
-    description,
-    category_id,
-    subcategory_id,
-    inventory,
-    images,
-    attributes,
-    promotions,
-  });
-
-  await product.save();
-  const newProduct = await Product.findById(product._id).select(
-    "-isActive -inventory.cost -attributes.weight -promotions.sale_end_date"
-  );
-  res
-    .status(200)
-    .json(new ApiResponse(200, newProduct, "Product created successfully"));
 });
 
 export const createMultipleProducts = asyncHandler(async (req, res) => {
@@ -127,6 +158,7 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
       images,
       attributes,
       promotions,
+      brand_name
     } = productData;
 
     // Check required fields
@@ -140,6 +172,9 @@ export const createMultipleProducts = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Missing required field: category_id");
     }
     if (!images) {
+      throw new ApiError(400, "Missing required field: images");
+    }
+    if (!brand_name) {
       throw new ApiError(400, "Missing required field: images");
     }
 
@@ -270,36 +305,50 @@ export const allProduct = async (req, res) => {
     throw new ApiError(500, error.message);
   }
 };
-
 export const productByCategory = asyncHandler(async (req, res) => {
   const id = req.params.id;
-  const { page, limit } = req.query;
+  const { page, limit, admin } = req.query;
   const { skip, limit: limitNumber } = getPagination(page, limit);
-  const categoryId = req.params.id;
+
+  // Define match condition
+  let matchCondition;
+
   if (id === "all") {
-    const products = await allProduct(req, res);
-    return res
-      .status(200)
-      .json(new ApiResponse(200, products, "Fetched All Product"));
-  }
-  if (!id) {
-    throw new ApiError(400, "Category ID is required");
-  }
+    // Match all products
+    matchCondition = admin === "true"
+      ? {} // Admin sees all products
+      : { isActive: true, status: "Active" }; // Non-admin sees only active products
+  } else {
+    // Validate category ID
+    if (!id) {
+      throw new ApiError(400, "Category ID is required");
+    }
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new ApiError(400, "Invalid Category ID format");
+    }
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    throw new ApiError(400, "Invalid Category ID format");
-  }
-
-  //
-  const products = await Product.aggregate([
-    {
-      $match: {
-        isActive: true,
+    // Match products by category or subcategory
+    matchCondition = admin === "true"
+      ? {
         $or: [
-          { category_id: new mongoose.Types.ObjectId(categoryId) },
-          { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
+          { category_id: new mongoose.Types.ObjectId(id) },
+          { subcategory_id: new mongoose.Types.ObjectId(id) },
         ],
-      },
+      }
+      : {
+        isActive: true,
+        status: "Active",
+        $or: [
+          { category_id: new mongoose.Types.ObjectId(id) },
+          { subcategory_id: new mongoose.Types.ObjectId(id) },
+        ],
+      };
+  }
+
+  // Build aggregation pipeline
+  const aggregationPipeline = [
+    {
+      $match: matchCondition,
     },
     {
       $lookup: {
@@ -319,65 +368,55 @@ export const productByCategory = asyncHandler(async (req, res) => {
     },
     {
       $addFields: {
-        category_name: { $arrayElemAt: ["$category.name", 0] }, // Extract category name
-        subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] }, // Extract subcategory name
+        category_name: { $arrayElemAt: ["$category.name", 0] },
+        subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] },
       },
     },
-    {
-      $project: {
-        name: 1,
-        description: 1,
-        categories: {
-          $filter: {
-            input: [
-              { $ifNull: ["$category_name", null] },
-              { $ifNull: ["$subcategory_name", null] },
-            ],
-            as: "name",
-            cond: { $ne: ["$$name", null] },
+  ];
+
+  // Add projection and pagination for non-admin users
+  if (!admin || admin !== "true") {
+    aggregationPipeline.push(
+      {
+        $project: {
+          name: 1,
+          description: 1,
+          categories: {
+            $concatArrays: ["$category.name", "$subcategory.name"],
+          },
+          inventory: {
+            size: 1,
+            base_price: 1,
+            discounted_price: 1,
+            stock_quantity: 1,
+            supplier: 1,
+          },
+          brand_name: 1,
+          category_id: 1,
+          subcategory_id: 1,
+          images: 1,
+          attributes: 1,
+          customer_reviews: 1,
+          promotions: {
+            discount_percentage: 1,
           },
         },
-        inventory: {
-          size: 1,
-          base_price: 1,
-          discounted_price: 1,
-          stock_quantity: 1,
-          supplier: 1,
-        },
-        category_id: 1,
-        subcategory_id: 1,
-        images: 1,
-        attributes: 1,
-        customer_reviews: 1,
-        promotions: {
-          discount_percentage: 1,
-        },
       },
-    },
-  ]);
+      // { $skip: skip }, // Pagination
+      // { $limit: limitNumber }
+    );
+  }
 
-  // const products = await Product.find({
-  //   isActive: true,
-  //   $or: [{ category_id: id }, { subcategory_id: id }],
-  // }).select(
-  //   "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
-  // );
-  // const product = await Product.aggregate([
-  //   {
-  //     $match: {
-  //       isActive: true,
+  const products = await Product.aggregate(aggregationPipeline);
 
-  //     },
-  //   },
-  // ]);
-  const totalItems = await Product.countDocuments({
-    isActive: true,
-    $or: [{ category_id: categoryId }, { subcategory_id: categoryId }],
-  });
+  // Calculate total items and pages
+  const totalItems = admin === "true"
+    ? await Product.countDocuments(matchCondition)
+    : products.length;
   const totalPages = Math.ceil(totalItems / limitNumber);
 
+  // Handle no products found
   if (!products || products.length < 1) {
-    // throw new ApiError(404, "Product not found");
     return res.status(404).json(new ApiResponse(404, [], "Product not found"));
   }
 
@@ -390,17 +429,214 @@ export const productByCategory = asyncHandler(async (req, res) => {
         totalItems,
         currentPage: parseInt(page, 10) || 1,
       },
-      "Fetched Products by Category"
+      id === "all" ? "Fetched All Products" : "Fetched Products by Category"
     )
   );
-  // res
-  //   .status(201)
-  //   .json(new ApiResponse(201, products, "Fetched Product by Category"));
 });
+
+
+// export const productByCategory = asyncHandler(async (req, res) => {
+//   const id = req.params.id;
+//   const { page, limit, admin } = req.query;
+//   const { skip, limit: limitNumber } = getPagination(page, limit);
+//   const categoryId = req.params.id;
+//   if (id === "all") {
+//     const products = await allProduct(req, res);
+//     return res
+//       .status(200)
+//       .json(new ApiResponse(200, products, "Fetched All Product"));
+//   }
+//   if (!id) {
+//     throw new ApiError(400, "Category ID is required");
+//   }
+
+//   if (!mongoose.Types.ObjectId.isValid(id)) {
+//     throw new ApiError(400, "Invalid Category ID format");
+//   }
+//   let matchCondition
+//   if (admin || admin === "true") {
+//     console.log(admin)
+//     matchCondition = {
+//       $or: [
+//         { category_id: new mongoose.Types.ObjectId(categoryId) },
+//         { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
+//       ],
+//     };
+//   } else {
+//     matchCondition = {
+//       isActive: true,
+//       $or: [
+//         { category_id: new mongoose.Types.ObjectId(categoryId) },
+//         { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
+//       ],
+//     };
+//   }
+//   const aggregationPipeline = [
+//     {
+//       $match: matchCondition,
+//     },
+//     {
+//       $lookup: {
+//         from: "categories", // Replace with the actual name of the category collection
+//         localField: "category_id",
+//         foreignField: "_id",
+//         as: "category",
+//       },
+//     },
+//     {
+//       $lookup: {
+//         from: "subcategories", // Replace with the actual name of the subcategory collection
+//         localField: "subcategory_id",
+//         foreignField: "_id",
+//         as: "subcategory",
+//       },
+//     },
+//     {
+//       $addFields: {
+//         category_name: { $arrayElemAt: ["$category.name", 0] },
+//         subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] },
+//       },
+//     },
+//   ];
+
+//   // Add projection and pagination for non-admin users
+//   if (!admin || admin !== "true") {
+//     aggregationPipeline.push(
+//       {
+//         $project: {
+//           name: 1,
+//           description: 1,
+//           categories: {
+//             $filter: {
+//               input: [
+//                 { $ifNull: ["$category_name", null] },
+//                 { $ifNull: ["$subcategory_name", null] },
+//               ],
+//               as: "name",
+//               cond: { $ne: ["$$name", null] },
+//             },
+//           },
+//           inventory: {
+//             size: 1,
+//             base_price: 1,
+//             discounted_price: 1,
+//             stock_quantity: 1,
+//           },
+//           images: 1,
+//           promotions: {
+//             discount_percentage: 1,
+//           },
+//         },
+//       },
+//       { $skip: skip }, // Pagination
+//       { $limit: limitNumber }
+//     );
+//   }
+
+//   console.log(aggregationPipeline, "aggregation")
+//   //
+//   // const products = await Product.aggregate([
+//   //   {
+//   //     $match: {
+//   //       isActive: true,
+//   //       $or: [
+//   //         { category_id: new mongoose.Types.ObjectId(categoryId) },
+//   //         { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
+//   //       ],
+//   //     },
+//   //   },
+//   //   {
+//   //     $lookup: {
+//   //       from: "categories", // Replace with the actual name of the category collection
+//   //       localField: "category_id",
+//   //       foreignField: "_id",
+//   //       as: "category",
+//   //     },
+//   //   },
+//   //   {
+//   //     $lookup: {
+//   //       from: "subcategories", // Replace with the actual name of the subcategory collection
+//   //       localField: "subcategory_id",
+//   //       foreignField: "_id",
+//   //       as: "subcategory",
+//   //     },
+//   //   },
+//   //   {
+//   //     $addFields: {
+//   //       category_name: { $arrayElemAt: ["$category.name", 0] }, // Extract category name
+//   //       subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] }, // Extract subcategory name
+//   //     },
+//   //   },
+//   //   {
+//   //     $project: {
+//   //       name: 1,
+//   //       description: 1,
+//   //       categories: {
+//   //         $filter: {
+//   //           input: [
+//   //             { $ifNull: ["$category_name", null] },
+//   //             { $ifNull: ["$subcategory_name", null] },
+//   //           ],
+//   //           as: "name",
+//   //           cond: { $ne: ["$$name", null] },
+//   //         },
+//   //       },
+//   //       inventory: {
+//   //         size: 1,
+//   //         base_price: 1,
+//   //         discounted_price: 1,
+//   //         stock_quantity: 1,
+//   //         supplier: 1,
+//   //       },
+//   //       category_id: 1,
+//   //       subcategory_id: 1,
+//   //       images: 1,
+//   //       attributes: 1,
+//   //       customer_reviews: 1,
+//   //       promotions: {
+//   //         discount_percentage: 1,
+//   //       },
+//   //     },
+//   //   },
+//   // ]);
+//   const products = await Product.aggregate(aggregationPipeline);
+
+//   // const products = await Product.find({
+//   //   isActive: true,
+//   //   $or: [{ category_id: id }, { subcategory_id: id }],
+//   // }).select(
+//   //   "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
+//   // );
+//   const totalItems = admin === "true"
+//     ? await Product.countDocuments(matchCondition)
+//     : products.length;
+
+//   const totalPages = Math.ceil(totalItems / limitNumber);
+
+//   if (!products || products.length < 1) {
+//     // throw new ApiError(404, "Product not found");
+//     return res.status(404).json(new ApiResponse(404, [], "Product not found"));
+//   }
+
+//   res.status(200).json(
+//     new ApiResponse(
+//       200,
+//       {
+//         products,
+//         totalPages,
+//         totalItems,
+//         currentPage: parseInt(page, 10) || 1,
+//       },
+//       "Fetched Products by Category"
+//     )
+//   );
+//   // res
+//   //   .status(201)
+//   //   .json(new ApiResponse(201, products, "Fetched Product by Category"));
+// });
 
 export const productBySubCategory = asyncHandler(async (req, res) => {
   const subcategory_id = req.params.id; // Access route parameter 'id'
-
   if (!subcategory_id) {
     throw new ApiError(400, "SubCategory ID is required");
   }
@@ -425,19 +661,27 @@ export const productBySubCategory = asyncHandler(async (req, res) => {
 
 export const productByID = asyncHandler(async (req, res) => {
   const product_id = req.params.id; // Access route parameter 'id'
-
+  const { admin } = req.query
   if (!product_id) {
     throw new ApiError(400, "SubCategory ID is required");
   }
   if (!mongoose.Types.ObjectId.isValid(product_id)) {
     throw new ApiError(400, "Invalid Subcategory ID format");
   }
-  const products = await Product.aggregate([
+
+  let matchCondition = admin === "true"
+    ? {
+      _id: new mongoose.Types.ObjectId(product_id),
+    }
+    : {
+      isActive: true,
+      _id: new mongoose.Types.ObjectId(product_id),
+      status: "Active"
+    };
+
+  const aggregationPipeline = [
     {
-      $match: {
-        isActive: true,
-        _id: new mongoose.Types.ObjectId(product_id),
-      },
+      $match: matchCondition,
     },
     {
       $lookup: {
@@ -456,30 +700,70 @@ export const productByID = asyncHandler(async (req, res) => {
       },
     },
     {
-      $project: {
-        name: 1,
-        description: 1,
-        categories: {
-          $concatArrays: ["$category.name", "$subcategory.name"],
-        },
-        inventory: {
-          size: 1,
-          base_price: 1,
-          discounted_price: 1,
-          stock_quantity: 1,
-          supplier: 1,
-        },
-        category_id: 1,
-        subcategory_id: 1,
-        images: 1,
-        attributes: 1,
-        customer_reviews: 1,
-        promotions: {
-          discount_percentage: 1,
-        },
+      $addFields: {
+        category_name: { $arrayElemAt: ["$category.name", 0] },
+        subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] },
       },
     },
-  ]);
+  ];
+
+  if (!admin || !admin === "true") {
+    aggregationPipeline.push(
+      {
+        $project: {
+          name: 1,
+          description: 1,
+          categories: {
+            $concatArrays: ["$category.name", "$subcategory.name"],
+          },
+          inventory: {
+            size: 1,
+            base_price: 1,
+            discounted_price: 1,
+            stock_quantity: 1,
+            supplier: 1,
+          },
+          brand_name: 1,
+          category_id: 1,
+          subcategory_id: 1,
+          images: 1,
+          attributes: 1,
+          customer_reviews: 1,
+          promotions: {
+            discount_percentage: 1,
+          },
+        },
+      })
+  }
+  const products = await Product.aggregate(aggregationPipeline);
+
+
+  // const products = await Product.aggregate([
+  //   {
+  //     $match: {
+  //       isActive: true,
+  //       _id: new mongoose.Types.ObjectId(product_id),
+  //     },
+  //   },
+  //   {
+  //     $lookup: {
+  //       from: "categories", // Replace with the actual name of the category collection
+  //       localField: "category_id",
+  //       foreignField: "_id",
+  //       as: "category",
+  //     },
+  //   },
+  //   {
+  //     $lookup: {
+  //       from: "subcategories", // Replace with the actual name of the subcategory collection
+  //       localField: "subcategory_id",
+  //       foreignField: "_id",
+  //       as: "subcategory",
+  //     },
+  //   },
+  //  
+  // ]);
+
   if (!products || products.length < 1) {
     // throw new ApiError(404, "Product not found");
     return res.status(404).json(new ApiResponse(404, [], "Product not found"));
@@ -535,6 +819,7 @@ export const searchProducts = asyncHandler(async (req, res) => {
           stock_quantity: 1,
           supplier: 1,
         },
+        brand_name: 1,
         category_id: 1,
         subcategory_id: 1,
         images: 1,
@@ -556,3 +841,35 @@ export const searchProducts = asyncHandler(async (req, res) => {
       new ApiResponse(200, products, `${products.length} Search Result Found`)
     );
 });
+
+export const updateProductStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // Product ID from URL
+    const { status } = req.body; // New status from the request body
+
+    // Validate status
+    const validStatuses = ["Active", "Inactive", "Draft"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    // Find and update the product status
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true, runValidators: true } // Return the updated document and validate input
+    );
+    console.log(updatedProduct)
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      message: "Product status updated successfully",
+      data: updatedProduct,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
