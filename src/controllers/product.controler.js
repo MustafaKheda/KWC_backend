@@ -417,7 +417,7 @@ export const productByCategory = asyncHandler(async (req, res) => {
 
   // Handle no products found
   if (!products || products.length < 1) {
-    return res.status(404).json(new ApiResponse(404, [], "Product not found"));
+    return res.status(200).json(new ApiResponse(404, [], "Product not found"));
   }
 
   res.status(200).json(
