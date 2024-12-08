@@ -316,7 +316,7 @@ export const productByCategory = asyncHandler(async (req, res) => {
   if (id === "all") {
     // Match all products
     matchCondition = admin === "true"
-      ? {} // Admin sees all products
+      ? { isActive: true } // Admin sees all products
       : { isActive: true, status: "Active" }; // Non-admin sees only active products
   } else {
     // Validate category ID
@@ -842,6 +842,33 @@ export const searchProducts = asyncHandler(async (req, res) => {
     );
 });
 
+
+export const deleteProduct = async (req, res) => {
+  try {
+    const { id } = req.params; // Product ID from URL
+    console.log(id)
+    // Validate status
+
+    // Find and update the product status
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      { isActive: false },
+      { new: true, runValidators: true } // Return the updated document and validate input
+    );
+    console.log(updatedProduct)
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json({
+      message: "Product status updated successfully",
+      data: updatedProduct,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 export const updateProductStatus = async (req, res) => {
   try {
     const { id } = req.params; // Product ID from URL

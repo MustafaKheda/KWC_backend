@@ -8,6 +8,7 @@ import {
   productByID,
   allProduct,
   updateProductStatus,
+  deleteProduct,
 } from "../controllers/product.controler.js";
 
 const router = Router();
@@ -22,5 +23,7 @@ router.route("/:id").get(productByID);
 router.route("/multiple").post(createMultipleProducts);
 // PUT /api/products/:id/status
 router.put("/:id/status", updateProductStatus);
+router.route("/:id").delete(deleteProduct);
+
 
 export default router;
