@@ -61,4 +61,7 @@ type Query {
     getProducts: [Product]
     productCount:Int
 }
+type Mutation {
+    updateInventoryQuantity(productId: String!, size: Float!, stock_quantity: Int!): Product
+}
 `

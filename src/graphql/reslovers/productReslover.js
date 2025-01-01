@@ -16,7 +16,7 @@ export const productResolvers = {
             try {
                 const product = await Product.findOne({ product_id: productId }, projection);
 
-                // If category details are requested, fetch them
+                // // If category details are requested, fetch them
                 if (fields.includes('category_id')) {
                     const category = await Category.findOne({ category_id: product.category_id });
                     product.category_id = {
@@ -47,7 +47,6 @@ export const productResolvers = {
                 throw new Error("Error fetching products: " + error.message);
             }
         },
-
         productCount: async () => {
             // Count products in the database
             return await Product.countDocuments();
@@ -64,6 +63,40 @@ export const productResolvers = {
                 return category ? { id: category._id, name: category.name } : null;
             } catch (error) {
                 throw new Error("Error fetching category: " + error.message);
+            }
+        },
+    },
+    Mutation: {
+        // Mutation to update inventory quantity for a product
+        updateInventoryQuantity: async (_, { productId, size, quantity }) => {
+            try {
+                // Find the product by its ID
+                const product = await Product.findOne({ product_id: productId });
+
+                if (!product) {
+                    throw new Error("Product not found");
+                }
+
+                // Find the inventory variant by size
+                const inventory = product.inventory.find((item) => item.size === size);
+
+                if (!inventory) {
+                    throw new Error("Inventory size not found");
+                }
+
+                // Update the stock_quantity
+                inventory.stock_quantity = quantity;
+
+                // Save the updated product
+                await product.save();
+
+                return {
+                    product_id: product.product_id,
+                    name: product.name,
+                    inventory: product.inventory,
+                };
+            } catch (error) {
+                throw new Error("Error updating inventory: " + error.message);
             }
         },
     },

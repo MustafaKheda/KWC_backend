@@ -24,6 +24,12 @@ const inventorySchema = new Schema(
       trim: true,
       min: 0,
     },
+    SKU: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true
+    },
   },
   { _id: false }
 );

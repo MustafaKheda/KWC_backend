@@ -9,7 +9,20 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 const typeDefs = [productSchema];  // Add other schemas like userSchema if needed
 
 // Combine all resolvers into one
-const resolvers = [productResolvers];  // Add other resolvers like userResolver if needed
+const resolvers = {
+    Query: {
+        ...productResolvers.Query,
+    },
+    Mutation: {
+        ...productResolvers.Mutation,
+    },
+    // Add custom resolvers for types if necessary
+    Product: {
+        ...productResolvers.Product,
+    },
+};
+// Combine all resolvers into one
+// const resolvers = [productResolvers];  // Add other resolvers like userResolver if needed
 
 // Create the executable schema
 export const schema = makeExecutableSchema({ typeDefs, resolvers });
