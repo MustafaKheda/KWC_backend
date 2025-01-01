@@ -7,7 +7,10 @@ type Inventory {
     discounted_price: Float
     cost: Float!
 }
-
+type Category {
+  id: ID!
+  name: String!
+}
 type Image {
     main_image: String!
     additional_images: [String]
@@ -36,6 +39,7 @@ type Product {
     isActive: Boolean
     status: String
     category_id: String
+    category: Category # Add this field
     subcategory_id: String
     inventory: [Inventory]
     images: Image

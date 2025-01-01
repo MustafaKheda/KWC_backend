@@ -40,8 +40,6 @@ function calculateDiscountedPrice(pricing, promotions) {
 
 export const createProduct = asyncHandler(async (req, res) => {
   try {
-
-
     const {
       product_id,
       name,
@@ -94,7 +92,7 @@ export const createProduct = asyncHandler(async (req, res) => {
         price.discounted_price = price.base_price;
       }
     });
-
+    console.log(inventory)
     // Validate images
     if (!images.main_image) {
       throw new ApiError(400, "Missing main image");
@@ -139,6 +137,102 @@ export const createProduct = asyncHandler(async (req, res) => {
   }
 
 });
+export const updateProduct = asyncHandler(async (req, res) => {
+  const { id } = req.params
+  console.log(id)
+  try {
+    const {
+      product_id,
+      name,
+      description,
+      category_id,
+      subcategory_id,
+      inventory,
+      images,
+      attributes,
+      promotions,
+      brand_name,
+    } = req.body;
+    console.log(req.body)
+    if (!product_id) {
+      throw new ApiError(400, "Missing required field: product_id");
+    }
+
+    console.log(`Updating product with ID: ${product_id}`);
+
+    // Validate pricing
+    inventory.forEach((price) => {
+      if (!price.base_price || !price.cost) {
+        throw new ApiError(
+          400,
+          `Missing required pricing fields for size ${price.size}`
+        );
+      }
+      if (!price.stock_quantity) {
+        throw new ApiError(400, "Missing required inventory fields");
+      }
+      if (!price.discounted_price) {
+        price.discounted_price =
+          promotions && promotions.discount_percentage
+            ? calculateDiscountedPrice(price, promotions)
+            : price.base_price;
+      }
+    });
+
+    // Validate images
+    if (!images || !images.main_image) {
+      throw new ApiError(400, "Missing main image");
+    }
+
+    // Update the product
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      {
+        name,
+        description,
+        category_id,
+        subcategory_id,
+        inventory,
+        images,
+        attributes,
+        promotions,
+        brand_name,
+      },
+      { new: true, runValidators: true } // Return the updated product and apply validations
+    );
+
+    if (!updatedProduct) {
+      throw new ApiError(404, "Product not found");
+    }
+    console.log(updatedProduct)
+
+    const responseProduct = await Product.findById(updatedProduct._id).select(
+      "-isActive -inventory.cost -attributes.weight -promotions.sale_end_date"
+    );
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, responseProduct, "Product updated successfully"));
+  } catch (error) {
+    if (error.code === 11000) {
+      // Handle duplicate key error
+      res.status(400).json({
+        status: "duplicate_key_error",
+        message: `Product with name '${req.body.name}' already exists.`,
+        details: error.message,
+      });
+    } else {
+      console.log(data)
+      // Handle other errors
+      res.status(500).json({
+        status: "server_error",
+        message: "An error occurred while updating the product.",
+        details: error.message,
+      });
+    }
+  }
+});
+
 
 export const createMultipleProducts = asyncHandler(async (req, res) => {
   const products = req.body.products;

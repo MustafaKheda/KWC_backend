@@ -9,6 +9,7 @@ import {
   allProduct,
   updateProductStatus,
   deleteProduct,
+  updateProduct,
 } from "../controllers/product.controler.js";
 
 const router = Router();
@@ -24,6 +25,7 @@ router.route("/multiple").post(createMultipleProducts);
 // PUT /api/products/:id/status
 router.put("/:id/status", updateProductStatus);
 router.route("/:id").delete(deleteProduct);
+router.route("/:id").put(updateProduct);
 
 
 export default router;
