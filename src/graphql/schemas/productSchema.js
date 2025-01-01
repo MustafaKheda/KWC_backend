@@ -6,6 +6,7 @@ type Inventory {
     base_price: Float!
     discounted_price: Float
     cost: Float!
+    SKU:String
 }
 type Category {
   id: ID!
