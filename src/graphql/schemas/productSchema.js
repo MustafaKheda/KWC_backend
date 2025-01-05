@@ -8,7 +8,19 @@ type Inventory {
     cost: Float!
     SKU:String
 }
+input InventoryInput {
+    stock_quantity: Int!
+    size: Int!
+    base_price: Float!
+    discounted_price: Float
+    cost: Float!
+    SKU:String
+}
 type Category {
+  id: ID!
+  name: String!
+}
+type Subcategory {
   id: ID!
   name: String!
 }
@@ -48,6 +60,7 @@ type Product {
     brand_name: String!
     customer_reviews: CustomerReviews
     promotions: Promotions
+    subcategory:Subcategory
 }
 
 type ProductAttributes {
@@ -56,13 +69,21 @@ type ProductAttributes {
     supplier: String
     SKU: String
 }
-
+# Add ProductPagination type for paginated results
+type ProductPagination {
+    products: [Product]
+    totalCount: Int
+    totalPages: Int
+    currentPage: Int
+    pageSize: Int
+}
 type Query {
     getProduct(productId: String!): Product
-    getProducts: [Product]
+    getProducts(limit: Int, offset: Int): ProductPagination
     productCount:Int
 }
 type Mutation {
-    updateInventoryQuantity(productId: String!, size: Float!, stock_quantity: Int!): Product
+    updateInventoryQuantity(productId: String!, size: Int!, quantity: Int!): Product
+    updateInventory(productId: String!, inventory:[InventoryInput!]!): Product!
 }
 `

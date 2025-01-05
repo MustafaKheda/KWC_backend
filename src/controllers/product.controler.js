@@ -370,8 +370,8 @@ export const allProduct = async (req, res) => {
           },
         },
       },
-      // { $skip: skip }, // Pagination skip
-      // { $limit: limitNumber }, // Pagination limit
+      { $skip: skip }, // Pagination skip
+      { $limit: limitNumber }, // Pagination limit
     ]);
     if (!products || products.length < 1) {
       throw new ApiError(404, "Product not found");
@@ -466,6 +466,8 @@ export const productByCategory = asyncHandler(async (req, res) => {
         subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] },
       },
     },
+    { $skip: skip }, // Pagination
+    { $limit: limitNumber }
   ];
 
   // Add projection and pagination for non-admin users
@@ -496,18 +498,21 @@ export const productByCategory = asyncHandler(async (req, res) => {
           },
         },
       },
-      // { $skip: skip }, // Pagination
-      // { $limit: limitNumber }
+
     );
   }
 
-  const products = await Product.aggregate(aggregationPipeline);
-
+  const products = await Product.aggregate(aggregationPipeline)
+  console.log(products, skip, limitNumber)
   // Calculate total items and pages
   const totalItems = admin === "true"
     ? await Product.countDocuments(matchCondition)
     : products.length;
   const totalPages = Math.ceil(totalItems / limitNumber);
+
+  const currentPage = parseInt(page, 10) || 1;
+  // Calculate hasMore
+  const hasMore = currentPage < totalPages;
 
   // Handle no products found
   if (!products || products.length < 1) {
@@ -522,212 +527,13 @@ export const productByCategory = asyncHandler(async (req, res) => {
         totalPages,
         totalItems,
         currentPage: parseInt(page, 10) || 1,
+        hasMore
       },
       id === "all" ? "Fetched All Products" : "Fetched Products by Category"
     )
   );
 });
 
-
-// export const productByCategory = asyncHandler(async (req, res) => {
-//   const id = req.params.id;
-//   const { page, limit, admin } = req.query;
-//   const { skip, limit: limitNumber } = getPagination(page, limit);
-//   const categoryId = req.params.id;
-//   if (id === "all") {
-//     const products = await allProduct(req, res);
-//     return res
-//       .status(200)
-//       .json(new ApiResponse(200, products, "Fetched All Product"));
-//   }
-//   if (!id) {
-//     throw new ApiError(400, "Category ID is required");
-//   }
-
-//   if (!mongoose.Types.ObjectId.isValid(id)) {
-//     throw new ApiError(400, "Invalid Category ID format");
-//   }
-//   let matchCondition
-//   if (admin || admin === "true") {
-//     console.log(admin)
-//     matchCondition = {
-//       $or: [
-//         { category_id: new mongoose.Types.ObjectId(categoryId) },
-//         { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
-//       ],
-//     };
-//   } else {
-//     matchCondition = {
-//       isActive: true,
-//       $or: [
-//         { category_id: new mongoose.Types.ObjectId(categoryId) },
-//         { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
-//       ],
-//     };
-//   }
-//   const aggregationPipeline = [
-//     {
-//       $match: matchCondition,
-//     },
-//     {
-//       $lookup: {
-//         from: "categories", // Replace with the actual name of the category collection
-//         localField: "category_id",
-//         foreignField: "_id",
-//         as: "category",
-//       },
-//     },
-//     {
-//       $lookup: {
-//         from: "subcategories", // Replace with the actual name of the subcategory collection
-//         localField: "subcategory_id",
-//         foreignField: "_id",
-//         as: "subcategory",
-//       },
-//     },
-//     {
-//       $addFields: {
-//         category_name: { $arrayElemAt: ["$category.name", 0] },
-//         subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] },
-//       },
-//     },
-//   ];
-
-//   // Add projection and pagination for non-admin users
-//   if (!admin || admin !== "true") {
-//     aggregationPipeline.push(
-//       {
-//         $project: {
-//           name: 1,
-//           description: 1,
-//           categories: {
-//             $filter: {
-//               input: [
-//                 { $ifNull: ["$category_name", null] },
-//                 { $ifNull: ["$subcategory_name", null] },
-//               ],
-//               as: "name",
-//               cond: { $ne: ["$$name", null] },
-//             },
-//           },
-//           inventory: {
-//             size: 1,
-//             base_price: 1,
-//             discounted_price: 1,
-//             stock_quantity: 1,
-//           },
-//           images: 1,
-//           promotions: {
-//             discount_percentage: 1,
-//           },
-//         },
-//       },
-//       { $skip: skip }, // Pagination
-//       { $limit: limitNumber }
-//     );
-//   }
-
-//   console.log(aggregationPipeline, "aggregation")
-//   //
-//   // const products = await Product.aggregate([
-//   //   {
-//   //     $match: {
-//   //       isActive: true,
-//   //       $or: [
-//   //         { category_id: new mongoose.Types.ObjectId(categoryId) },
-//   //         { subcategory_id: new mongoose.Types.ObjectId(categoryId) },
-//   //       ],
-//   //     },
-//   //   },
-//   //   {
-//   //     $lookup: {
-//   //       from: "categories", // Replace with the actual name of the category collection
-//   //       localField: "category_id",
-//   //       foreignField: "_id",
-//   //       as: "category",
-//   //     },
-//   //   },
-//   //   {
-//   //     $lookup: {
-//   //       from: "subcategories", // Replace with the actual name of the subcategory collection
-//   //       localField: "subcategory_id",
-//   //       foreignField: "_id",
-//   //       as: "subcategory",
-//   //     },
-//   //   },
-//   //   {
-//   //     $addFields: {
-//   //       category_name: { $arrayElemAt: ["$category.name", 0] }, // Extract category name
-//   //       subcategory_name: { $arrayElemAt: ["$subcategory.name", 0] }, // Extract subcategory name
-//   //     },
-//   //   },
-//   //   {
-//   //     $project: {
-//   //       name: 1,
-//   //       description: 1,
-//   //       categories: {
-//   //         $filter: {
-//   //           input: [
-//   //             { $ifNull: ["$category_name", null] },
-//   //             { $ifNull: ["$subcategory_name", null] },
-//   //           ],
-//   //           as: "name",
-//   //           cond: { $ne: ["$$name", null] },
-//   //         },
-//   //       },
-//   //       inventory: {
-//   //         size: 1,
-//   //         base_price: 1,
-//   //         discounted_price: 1,
-//   //         stock_quantity: 1,
-//   //         supplier: 1,
-//   //       },
-//   //       category_id: 1,
-//   //       subcategory_id: 1,
-//   //       images: 1,
-//   //       attributes: 1,
-//   //       customer_reviews: 1,
-//   //       promotions: {
-//   //         discount_percentage: 1,
-//   //       },
-//   //     },
-//   //   },
-//   // ]);
-//   const products = await Product.aggregate(aggregationPipeline);
-
-//   // const products = await Product.find({
-//   //   isActive: true,
-//   //   $or: [{ category_id: id }, { subcategory_id: id }],
-//   // }).select(
-//   //   "-isActive -pricing.cost -attributes.weight -promotions.sale_end_date"
-//   // );
-//   const totalItems = admin === "true"
-//     ? await Product.countDocuments(matchCondition)
-//     : products.length;
-
-//   const totalPages = Math.ceil(totalItems / limitNumber);
-
-//   if (!products || products.length < 1) {
-//     // throw new ApiError(404, "Product not found");
-//     return res.status(404).json(new ApiResponse(404, [], "Product not found"));
-//   }
-
-//   res.status(200).json(
-//     new ApiResponse(
-//       200,
-//       {
-//         products,
-//         totalPages,
-//         totalItems,
-//         currentPage: parseInt(page, 10) || 1,
-//       },
-//       "Fetched Products by Category"
-//     )
-//   );
-//   // res
-//   //   .status(201)
-//   //   .json(new ApiResponse(201, products, "Fetched Product by Category"));
-// });
 
 export const productBySubCategory = asyncHandler(async (req, res) => {
   const subcategory_id = req.params.id; // Access route parameter 'id'

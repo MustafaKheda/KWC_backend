@@ -1,5 +1,6 @@
 import { Category } from "../../models/category.model.js";
 import Product from "../../models/product.model.js";
+import { Subcategory } from "../../models/subcategory.model.js";
 // import Category from "../../models/category.model.js"; // Assuming you have a category model
 
 export const productResolvers = {
@@ -8,22 +9,16 @@ export const productResolvers = {
         getProduct: async (_, { productId }, context, info) => {
             // Extract requested fields dynamically
             const fields = info.fieldNodes[0].selectionSet.selections.map(field => field.name.value);
-            const projection = {};
+            const projection = {
+                category_id: 1,  // Include category_id in the result
+                subcategory_id: 1  // Include subcategory_id in the result
+            };
             fields.forEach(field => {
                 projection[field] = 1; // Include the requested field
             });
 
             try {
                 const product = await Product.findOne({ product_id: productId }, projection);
-
-                // // If category details are requested, fetch them
-                if (fields.includes('category_id')) {
-                    const category = await Category.findOne({ category_id: product.category_id });
-                    product.category_id = {
-                        id: category.category_id,
-                        name: category.name,
-                    };
-                }
 
                 return product;
             } catch (error) {
@@ -32,17 +27,42 @@ export const productResolvers = {
         },
 
         // Get all products
-        getProducts: async (_, __, context, info) => {
-            const fields = info.fieldNodes[0].selectionSet.selections.map(field => field.name.value);
-            const projection = {};
+        getProducts: async (_, { limit = null, offset = 0 }, context, info) => {
+            console.log(info.fieldNodes[0].selectionSet.selections)
+            const fields = info.fieldNodes[0].selectionSet.selections[0].selectionSet.selections.map(field => field.name.value);
+            const projection = {
+                category_id: 1,  // Include category_id in the result
+                subcategory_id: 1  // Include subcategory_id in the result
+            };
             fields.forEach(field => {
                 projection[field] = 1; // Include the requested field
             });
 
             try {
-                const products = await Product.find({ isActive: true }, projection);
+                // Count the total number of products
+                const totalCount = await Product.countDocuments({ isActive: true });
+                let products;
 
-                return products;
+                if (limit) {
+                    // If a limit is provided, apply pagination
+                    products = await Product.find({ isActive: true }, projection)
+                        .skip(offset)
+                        .limit(limit);
+                } else {
+                    // No limit provided, fetch all products
+                    products = await Product.find({ isActive: true }, projection);
+                }
+
+                // Calculate total pages only if limit is provided
+                const totalPages = limit ? Math.ceil(totalCount / limit) : 1;
+
+                return {
+                    products,
+                    totalCount,
+                    totalPages,
+                    currentPage: limit ? Math.floor(offset / limit) + 1 : 1,
+                    pageSize: limit || totalCount, // If no limit, return all items on a single page
+                };
             } catch (error) {
                 throw new Error("Error fetching products: " + error.message);
             }
@@ -59,8 +79,16 @@ export const productResolvers = {
             if (!parent.category_id) return null;
             try {
                 const category = await Category.findOne({ _id: parent.category_id });
-                console.log(category)
                 return category ? { id: category._id, name: category.name } : null;
+            } catch (error) {
+                throw new Error("Error fetching category: " + error.message);
+            }
+        },
+        subcategory: async (parent) => {
+            console.log(parent)
+            if (!parent.subcategory_id) return null;
+            try {
+                return await Subcategory.findOne({ _id: parent.subcategory_id });
             } catch (error) {
                 throw new Error("Error fetching category: " + error.message);
             }
@@ -89,6 +117,32 @@ export const productResolvers = {
 
                 // Save the updated product
                 await product.save();
+
+                return {
+                    product_id: product.product_id,
+                    name: product.name,
+                    inventory: product.inventory,
+                };
+            } catch (error) {
+                throw new Error("Error updating inventory: " + error.message);
+            }
+        },
+        updateInventory: async (_, { productId, inventory }) => {
+            try {
+                if (!productId || !Array.isArray(inventory) || inventory.length === 0) {
+                    throw new Error("Invalid input: productId and inventory are required.");
+                }
+
+                // Find and update the product's inventory
+                const product = await Product.findOneAndUpdate(
+                    { product_id: productId },
+                    { inventory: inventory },
+                    { new: true } // Return the updated product
+                );
+
+                if (!product) {
+                    throw new Error("Product not found");
+                }
 
                 return {
                     product_id: product.product_id,
