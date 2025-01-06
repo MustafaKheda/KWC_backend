@@ -1,6 +1,7 @@
 import { Category } from "../../models/category.model.js";
 import Product from "../../models/product.model.js";
 import { Subcategory } from "../../models/subcategory.model.js";
+import { getPagination } from "../../utils/pagination.js";
 // import Category from "../../models/category.model.js"; // Assuming you have a category model
 
 export const productResolvers = {
@@ -28,6 +29,7 @@ export const productResolvers = {
 
         // Get all products
         getProducts: async (_, { limit = null, offset = 0 }, context, info) => {
+
             console.log(info.fieldNodes[0].selectionSet.selections)
             const fields = info.fieldNodes[0].selectionSet.selections[0].selectionSet.selections.map(field => field.name.value);
             const projection = {
@@ -44,10 +46,11 @@ export const productResolvers = {
                 let products;
 
                 if (limit) {
+                    const { skip, limit: limitNumber } = getPagination(offset, limit);
                     // If a limit is provided, apply pagination
                     products = await Product.find({ isActive: true }, projection)
-                        .skip(offset)
-                        .limit(limit);
+                        .skip(skip)
+                        .limit(limitNumber);
                 } else {
                     // No limit provided, fetch all products
                     products = await Product.find({ isActive: true }, projection);
@@ -60,7 +63,7 @@ export const productResolvers = {
                     products,
                     totalCount,
                     totalPages,
-                    currentPage: limit ? Math.floor(offset / limit) + 1 : 1,
+                    currentPage: parseInt(offset, 10) || 1,
                     pageSize: limit || totalCount, // If no limit, return all items on a single page
                 };
             } catch (error) {
